@@ -3,7 +3,7 @@
 **Forecast model:** Ridge (selected model, CLAUDE.md §6)  
 **OOS window:** 2025-01-01 → 2025-12-31 (8759 hourly predictions)  
 
-No EEX forward print is used in this view (none could be sourced for the OOS delivery dates). The directional trading call (direction / conviction / size) shown in the morning note is computed in `llm_commentary.py` primarily against the **EXAA (Sequence 2) day-ahead auction price** for the same delivery day — a real, observable pre-auction print that settles earlier the same day (~10:15 CET D-1) than the EPEX auction this model forecasts (~12:00 CET D-1). The earlier self-referential basis (forecast vs. trailing D-1/D-7 realised baseload) is kept as secondary context. See report.pdf §7 / CLAUDE.md §7 for the rationale.
+No EEX forward print is used in this view (none could be sourced for the OOS delivery dates). The directional trading call (direction / conviction / size) shown in the morning note is computed in `llm_commentary.py` primarily against the **EXAA (Sequence 2) day-ahead auction price** for the same delivery day — a real, observable pre-auction print that settles earlier the same day (~10:15 CET D-1) than the EPEX auction this model forecasts (~12:00 CET D-1). The earlier self-referential basis (forecast vs. trailing D-1/D-7 realised baseload) is kept as secondary context. See full_report.pdf §7 / CLAUDE.md §7 for the rationale.
 
 ## 1. Model Fair-Value Aggregates (Ridge Forecast, full OOS year)
 

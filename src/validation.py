@@ -13,7 +13,7 @@ every 2025 prediction):
                "~2-4 weeks", this build deliberately widens it so predictions.csv
                and the prompt-curve / hourly-block figures are backed by the
                full-year walk-forward backtest, not a slice of it — see
-               REVISION_PLAN.md A1 and report.pdf §6) — written to predictions.csv.
+               REVISION_PLAN.md A1 and full_report.pdf §6) — written to predictions.csv.
 
 Walk-forward discipline:
   For each delivery day D in the window:
@@ -247,7 +247,7 @@ def run_window_tuning(X: pd.DataFrame, y: pd.Series) -> dict:
         "## Model-Selection Comparison (Validation 2024, winning window type)\n",
         "Ridge vs. LightGBM MAE on the 2024 Validation backtest, under the winning "
         f"window type ({winner}). **This comparison — not the 2025 Test numbers — is what "
-        "justifies the Ridge-vs-LightGBM model selection decision** (see report.pdf §4/§5). "
+        "justifies the Ridge-vs-LightGBM model selection decision** (see full_report.pdf §4/§5). "
         "The Test-period comparison is reported separately as out-of-sample confirmation only.\n",
         "| Model | MAE (EUR/MWh) |",
         "|---|---|",

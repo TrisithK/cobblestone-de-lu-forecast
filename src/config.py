@@ -22,7 +22,7 @@ TEST_END         = pd.Timestamp("2025-12-31 23:00:00", tz="Europe/Berlin")
 # build widens OOS to the full Test year on request, so predictions.csv and
 # the prompt-curve / hourly-block figures are backed by the same full-year
 # walk-forward backtest reported in validation_metrics.md, not a 24-day slice
-# of it. Documented as a deliberate deviation from the brief in report.pdf §6.
+# of it. Documented as a deliberate deviation from the brief in full_report.pdf §6.
 # ---------------------------------------------------------------------------
 OOS_START = TEST_START
 OOS_END   = TEST_END
@@ -41,10 +41,10 @@ WINDOW_TYPE = "expanding"  # "expanding" | "rolling" — [v2 round 2] flips back
 WINDOW_DAYS = 728           # trailing window length in days, used only if WINDOW_TYPE == "rolling"
 
 # ---------------------------------------------------------------------------
-# Prompt-curve figure readability window (CLAUDE.md §7 / report.pdf §7).
+# Prompt-curve figure readability window (CLAUDE.md §7 / full_report.pdf §7).
 # figures/prompt_curve.png and figures/hourly_block_view.png plot a Q4 2025
 # slice of the full-year OOS window for readability — the underlying
-# aggregate stats in outputs/*.md and report.pdf remain full-OOS-year.
+# aggregate stats in outputs/*.md and full_report.pdf remain full-OOS-year.
 # ---------------------------------------------------------------------------
 Q4_START = pd.Timestamp("2025-10-01 00:00:00", tz="Europe/Berlin")
 Q4_END   = pd.Timestamp("2025-12-31 23:00:00", tz="Europe/Berlin")

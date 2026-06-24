@@ -7,7 +7,7 @@ Translates the OOS hourly Ridge forecasts into a model fair-value view:
     against that day's own baseload average.
 
 No EEX forward print is used here (none could be sourced for the OOS delivery
-dates — see report.pdf §7). [v2 round 4]: the directional trading call
+dates — see full_report.pdf §7). [v2 round 4]: the directional trading call
 (direction / conviction / size) lives in llm_commentary.py and is now
 computed primarily against a real, sourced pre-auction reference instead —
 the EXAA (Sequence 2) day-ahead auction price for the same delivery day,
@@ -15,7 +15,7 @@ which settles earlier the same day (~10:15 CET D-1) than the EPEX auction
 this model forecasts (~12:00 CET D-1). The v1-v2 self-referential basis
 (tomorrow's forecast vs. the trailing realised baseload, D-1/D-7 actuals
 already used as model features) is retained as secondary context, not the
-primary driver. See report.pdf §7 for the rationale and CLAUDE.md §7.
+primary driver. See full_report.pdf §7 for the rationale and CLAUDE.md §7.
 
 figures/prompt_curve.png and figures/hourly_block_view.png restrict their
 *plotted* window to Q4 2025 (config.Q4_START/Q4_END) purely for readability
@@ -225,7 +225,7 @@ def _write_view_report(r: dict) -> None:
         "real, observable pre-auction print that settles earlier the same day (~10:15 CET "
         "D-1) than the EPEX auction this model forecasts (~12:00 CET D-1). The earlier "
         "self-referential basis (forecast vs. trailing D-1/D-7 realised baseload) is kept "
-        "as secondary context. See report.pdf §7 / CLAUDE.md §7 for the rationale.\n",
+        "as secondary context. See full_report.pdf §7 / CLAUDE.md §7 for the rationale.\n",
         "## 1. Model Fair-Value Aggregates (Ridge Forecast, full OOS year)\n",
         "| Aggregate | EUR/MWh |",
         "|-----------|---------|",
