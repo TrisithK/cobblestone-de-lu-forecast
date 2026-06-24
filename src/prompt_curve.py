@@ -1,15 +1,25 @@
 """
 prompt_curve.py — Prompt-curve translation (CLAUDE.md §7).
 
-Translates the OOS hourly Ridge forecasts into a relative-value basis view
-vs. the pinned EEX DE front-month / front-week settlement.
+Translates the OOS hourly Ridge forecasts into a model fair-value view:
+  - Full-OOS-year baseload / peak / off-peak aggregates (figures + report).
+  - Hourly/block tradable shape — which hours/blocks screen rich or cheap
+    against that day's own baseload average.
 
-CLAUDE.md §7 rules enforced here:
-  - Do NOT roll a 1-day forecast 30 days forward.
-  - Aggregate forecasted hours into baseload / peak daily averages.
-  - Compare vs. the pinned EEX settlement (date + source in config.py).
-  - Express a directional lean with explicit invalidation triggers.
-  - Add the risk-premium caveat (forward ≠ E[spot]).
+No EEX forward print is used here (none could be sourced for the OOS delivery
+dates — see report.pdf §7). [v2 round 4]: the directional trading call
+(direction / conviction / size) lives in llm_commentary.py and is now
+computed primarily against a real, sourced pre-auction reference instead —
+the EXAA (Sequence 2) day-ahead auction price for the same delivery day,
+which settles earlier the same day (~10:15 CET D-1) than the EPEX auction
+this model forecasts (~12:00 CET D-1). The v1-v2 self-referential basis
+(tomorrow's forecast vs. the trailing realised baseload, D-1/D-7 actuals
+already used as model features) is retained as secondary context, not the
+primary driver. See report.pdf §7 for the rationale and CLAUDE.md §7.
+
+figures/prompt_curve.png and figures/hourly_block_view.png restrict their
+*plotted* window to Q4 2025 (config.Q4_START/Q4_END) purely for readability
+— the full-OOS-year aggregate stats they annotate are unchanged.
 """
 
 import os
@@ -21,28 +31,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from config import (
-    EEX_FRONTMONTH_BASELOAD_EUR,
-    EEX_FRONTMONTH_DATE,
-    EEX_FRONTMONTH_IS_ILLUSTRATIVE,
-    EEX_FRONTWEEK_BASELOAD_EUR,
-    EEX_FRONTWEEK_DATE,
-    EEX_FRONTWEEK_IS_ILLUSTRATIVE,
-    EEX_SOURCE,
-    OOS_END,
-    OOS_START,
-)
+from config import OOS_END, OOS_START, Q4_END, Q4_START
 
 _ROOT       = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
 FIGURES_DIR = os.path.join(_ROOT, "figures")
 OUTPUTS_DIR = os.path.join(_ROOT, "outputs")
 
 _DE_HOLIDAYS = holidays.Germany()
-
-# Front-week delivery window — week starting the Monday after EEX settlement
-# (Dec 8 is the first OOS day; this is the front-week reference period)
-FRONTWEEK_START = pd.Timestamp("2025-12-08", tz="Europe/Berlin")
-FRONTWEEK_END   = pd.Timestamp("2025-12-14 23:00:00", tz="Europe/Berlin")
 
 
 # ---------------------------------------------------------------------------
@@ -54,62 +49,18 @@ def _is_peak(ts: pd.Timestamp) -> bool:
     return (8 <= ts.hour <= 20) and (ts.dayofweek < 5) and (ts.date() not in _DE_HOLIDAYS)
 
 
-_CONVICTION_RANK = ["LOW", "MODERATE", "HIGH"]
-_SIZE_RANK = [
-    "NO TRADE (basis inside estimation noise)",
-    "QUARTER SIZE (1/4 normal prompt risk)",
-    "HALF SIZE (1/2 normal prompt risk)",
-    "FULL SIZE (max normal prompt risk)",
-]
-
-
-def _conviction(basis_eur: float) -> str:
-    if abs(basis_eur) < 5:
-        return "LOW"
-    if abs(basis_eur) < 15:
-        return "MODERATE"
-    return "HIGH"
-
-
-def _position_size(basis_eur: float) -> str:
-    """
-    Rough position size keyed to basis magnitude.
-    Basis inside noise (<5 EUR/MWh) → no trade.
-    5-10 → quarter size; 10-20 → half; >20 → full.
-    """
-    ab = abs(basis_eur)
-    if ab < 5:
-        return "NO TRADE (basis inside estimation noise)"
-    if ab < 10:
-        return "QUARTER SIZE (1/4 normal prompt risk)"
-    if ab < 20:
-        return "HALF SIZE (1/2 normal prompt risk)"
-    return "FULL SIZE (max normal prompt risk)"
-
-
-def _cap_for_illustrative_reference(conviction: str, position_size: str) -> tuple[str, str]:
-    """
-    C3 fix: when the EEX reference behind a call is an illustrative placeholder
-    (no real sourced print), conviction is capped at MODERATE and size is capped
-    at HALF — no HIGH-conviction / FULL-SIZE call may rest on an unsourced number.
-    """
-    capped_conviction = _CONVICTION_RANK[min(_CONVICTION_RANK.index(conviction), 1)]
-    capped_size = _SIZE_RANK[min(_SIZE_RANK.index(position_size), 2)]
-    return capped_conviction, capped_size
-
-
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
 def translate_curve(predictions_path: str = None) -> dict:
     """
-    Load OOS predictions, compute baseload / peak aggregates, compare to the
-    pinned EEX reference, and return a structured dict for the LLM commentary step.
+    Load OOS predictions and compute baseload / peak / off-peak aggregates
+    over the full OOS year.
 
     Also writes:
-      figures/prompt_curve.png
-      outputs/prompt_curve_view.md
+      figures/prompt_curve.png       (hourly + daily view, Q4 2025 only — readability)
+      outputs/prompt_curve_view.md   (full-OOS-year aggregates)
     """
     os.makedirs(FIGURES_DIR, exist_ok=True)
     os.makedirs(OUTPUTS_DIR, exist_ok=True)
@@ -119,83 +70,24 @@ def translate_curve(predictions_path: str = None) -> dict:
 
     # --- Load and parse ---
     preds = pd.read_csv(predictions_path)
-    preds["datetime"] = pd.to_datetime(preds["datetime"]).dt.tz_convert("Europe/Berlin")
+    # utc=True first: the full Test year spans both CET (+01:00) and CEST (+02:00)
+    # offsets, so parsing without utc=True yields mixed-offset objects, not a
+    # DatetimeIndex.
+    preds["datetime"] = pd.to_datetime(preds["datetime"], utc=True).dt.tz_convert("Europe/Berlin")
     preds = preds.set_index("datetime").sort_index()
-
-    # Front-week drives direction/conviction/size below, so it's the flag that
-    # matters here. C3 fix: this is now an explicit config flag, not a brittle
-    # substring check on EEX_SOURCE (which never matched, so HIGH/FULL conviction
-    # calls were silently resting on an unsourced placeholder).
-    is_illustrative = EEX_FRONTWEEK_IS_ILLUSTRATIVE
-    if is_illustrative:
-        print(
-            "  [WARN] EEX_FRONTWEEK_BASELOAD_EUR is an illustrative placeholder "
-            "(no public EEX week-future print could be sourced — see config.py). "
-            "Conviction/size are capped accordingly."
-        )
 
     # --- Peak flag ---
     preds["is_peak"] = [_is_peak(ts) for ts in preds.index]
     preds["date"]    = preds.index.date
 
-    # --- OOS-wide aggregates ---
+    # --- OOS-wide aggregates (full year) ---
     baseload_avg = float(preds["y_pred"].mean())
     peak_avg     = float(preds.loc[preds["is_peak"], "y_pred"].mean())
     offpeak_avg  = float(preds.loc[~preds["is_peak"], "y_pred"].mean())
 
-    # --- Front-week aggregates (Dec 8-14 2025) ---
-    fw_mask       = (preds.index >= FRONTWEEK_START) & (preds.index <= FRONTWEEK_END)
-    fw_baseload   = float(preds.loc[fw_mask, "y_pred"].mean())
-    fw_peak_mask  = fw_mask & preds["is_peak"]
-    fw_peak       = float(preds.loc[fw_peak_mask, "y_pred"].mean()) if fw_peak_mask.any() else float("nan")
-
-    # --- Daily aggregates ---
+    # --- Daily aggregates (full year; figure subsets to Q4 for display) ---
     daily_baseload = preds.groupby("date")["y_pred"].mean()
     daily_peak     = preds[preds["is_peak"]].groupby("date")["y_pred"].mean()
-
-    # --- Basis calculations ---
-    # Front-week: model week-1 baseload vs EEX front-week settlement (most comparable)
-    basis_fw_baseload = fw_baseload - EEX_FRONTWEEK_BASELOAD_EUR
-    # Front-month: full OOS baseload vs EEX front-month (cross-month curve shape)
-    basis_fm_baseload = baseload_avg - EEX_FRONTMONTH_BASELOAD_EUR
-
-    # --- Directional view — anchored on front-week basis (same delivery window) ---
-    conviction    = _conviction(basis_fw_baseload)
-    position_size = _position_size(basis_fw_baseload)
-    if is_illustrative:
-        conviction, position_size = _cap_for_illustrative_reference(conviction, position_size)
-
-    if basis_fw_baseload > 5:
-        direction = "LONG / BUY"
-        view_text = (
-            f"Model fair value for the front-week delivery window (Dec 8-14) is "
-            f"{fw_baseload:.1f} EUR/MWh baseload, "
-            f"{abs(basis_fw_baseload):.1f} EUR/MWh ABOVE the pinned EEX front-week "
-            f"settlement ({EEX_FRONTWEEK_BASELOAD_EUR:.1f} EUR/MWh, {EEX_FRONTWEEK_DATE}). "
-            "The prompt forward looks cheap vs. near-term model fair value. "
-            f"Directional lean: long prompt (buy the front-week or spot equivalent). "
-            f"Suggested size: {position_size}."
-        )
-    elif basis_fw_baseload < -5:
-        direction = "SHORT / SELL"
-        view_text = (
-            f"Model fair value for the front-week delivery window (Dec 8-14) is "
-            f"{fw_baseload:.1f} EUR/MWh baseload, "
-            f"{abs(basis_fw_baseload):.1f} EUR/MWh BELOW the pinned EEX front-week "
-            f"settlement ({EEX_FRONTWEEK_BASELOAD_EUR:.1f} EUR/MWh, {EEX_FRONTWEEK_DATE}). "
-            "The prompt forward looks rich vs. near-term model fair value. "
-            f"Directional lean: short prompt (sell the front-week or reduce long). "
-            f"Suggested size: {position_size}."
-        )
-    else:
-        direction = "NEUTRAL / FLAT"
-        position_size = "NO TRADE (basis inside estimation noise)"
-        view_text = (
-            f"Model fair value for Dec 8-14 ({fw_baseload:.1f} EUR/MWh) is within "
-            f"{abs(basis_fw_baseload):.1f} EUR/MWh of the EEX front-week settlement "
-            f"({EEX_FRONTWEEK_BASELOAD_EUR:.1f} EUR/MWh) — inside estimation noise. "
-            "No clear directional edge; hold flat."
-        )
 
     invalidation_triggers = [
         (
@@ -215,48 +107,21 @@ def translate_curve(predictions_path: str = None) -> dict:
             "not captured in the load forecast (especially Christmas week)."
         ),
         (
-            "EEX settlement revises intraday — confirm vs. live screen before trading."
+            "[v2 round 4] EXAA print revises materially between its own auction "
+            "(~10:15 CET D-1) and EPEX gate closure (~12:00 CET D-1) — the basis "
+            "driving the trading call was set against the earlier EXAA read, so a "
+            "fresh fundamentals move in that window would stale it."
         ),
     ]
 
-    risk_premium_note = (
-        "The EEX forward price embeds a risk premium over E[spot]; it is not an "
-        "unbiased expectation of the realised daily average. This basis view is a "
-        "directional lean on relative value, not a claim that the forward will converge "
-        "to the model forecast. Size positions accordingly."
-    )
-
     result = {
-        # Aggregates
         "oos_start":        str(OOS_START.date()),
         "oos_end":          str(OOS_END.date()),
+        "n_oos_hours":      int(len(preds)),
         "baseload_avg_eur": round(baseload_avg, 2),
         "peak_avg_eur":     round(peak_avg, 2),
         "offpeak_avg_eur":  round(offpeak_avg, 2),
-        # Front-week window
-        "fw_start":         str(FRONTWEEK_START.date()),
-        "fw_end":           str(FRONTWEEK_END.date()),
-        "fw_baseload_eur":  round(fw_baseload, 2),
-        "fw_peak_eur":      round(fw_peak, 2) if not np.isnan(fw_peak) else None,
-        # EEX reference
-        "eex_frontmonth_eur":  EEX_FRONTMONTH_BASELOAD_EUR,
-        "eex_frontmonth_date": EEX_FRONTMONTH_DATE,
-        "eex_frontweek_eur":   EEX_FRONTWEEK_BASELOAD_EUR,
-        "eex_frontweek_date":  EEX_FRONTWEEK_DATE,
-        "eex_source":          EEX_SOURCE,
-        "eex_is_illustrative": is_illustrative,  # = front-week flag; drives conviction/size cap
-        "eex_frontmonth_is_illustrative": EEX_FRONTMONTH_IS_ILLUSTRATIVE,
-        "eex_frontweek_is_illustrative":  EEX_FRONTWEEK_IS_ILLUSTRATIVE,
-        # Basis
-        "basis_fw_baseload_eur": round(basis_fw_baseload, 2),
-        "basis_fm_baseload_eur": round(basis_fm_baseload, 2),
-        # View
-        "direction":             direction,
-        "conviction":            conviction,
-        "position_size":         position_size,
-        "view":                  view_text,
         "invalidation_triggers": invalidation_triggers,
-        "risk_premium_note":     risk_premium_note,
     }
 
     _plot_curve(preds, daily_baseload, daily_peak, result)
@@ -276,87 +141,64 @@ def _plot_curve(
     daily_peak: pd.Series,
     r: dict,
 ) -> None:
+    q4 = preds.loc[(preds.index >= Q4_START) & (preds.index <= Q4_END)]
+
     fig, axes = plt.subplots(2, 1, figsize=(14, 10))
 
-    # ---- Panel 1: Hourly time series ----------------------------------------
+    # ---- Panel 1: Hourly time series (Q4 2025 only — readability) ----------
     ax = axes[0]
 
-    # Peak-hour shading (fill_between — efficient, one call)
-    y_lo = preds["y_pred"].min() - 10
-    y_hi = preds["y_pred"].max() + 10
+    y_lo = q4["y_pred"].min() - 10
+    y_hi = q4["y_pred"].max() + 10
     ax.fill_between(
-        preds.index, y_lo, y_hi,
-        where=preds["is_peak"].values,
+        q4.index, y_lo, y_hi,
+        where=q4["is_peak"].values,
         alpha=0.09, color="orange", step="post",
         label="Peak hours (08-20 weekday)",
     )
 
-    ax.plot(preds.index, preds["y_pred"],
+    ax.plot(q4.index, q4["y_pred"],
             color="#2166ac", lw=0.9, alpha=0.85, label="Ridge forecast (hourly)")
     ax.axhline(r["baseload_avg_eur"], color="#2166ac", lw=1.8, ls="--",
-               label=f"OOS baseload avg: {r['baseload_avg_eur']:.1f} EUR/MWh")
+               label=f"Full-year OOS baseload avg: {r['baseload_avg_eur']:.1f} EUR/MWh")
     ax.axhline(r["peak_avg_eur"], color="darkorange", lw=1.8, ls="--",
-               label=f"OOS peak avg: {r['peak_avg_eur']:.1f} EUR/MWh")
-    ax.axhline(r["eex_frontmonth_eur"], color="firebrick", lw=2.0, ls="-",
-               label=(
-                   f"EEX front-month ({r['eex_frontmonth_date']}): "
-                   f"{r['eex_frontmonth_eur']:.1f} EUR/MWh  [indicative context only — month mismatch]"
-                   + (" [ILLUSTRATIVE]" if r["eex_frontmonth_is_illustrative"] else " [real print]")
-               ))
-    ax.axhline(r["eex_frontweek_eur"], color="darkred", lw=1.6, ls=":",
-               label=(
-                   f"EEX front-week ({r['eex_frontweek_date']}): "
-                   f"{r['eex_frontweek_eur']:.1f} EUR/MWh"
-                   + (" [ILLUSTRATIVE]" if r["eex_frontweek_is_illustrative"] else " [real print]")
-               ))
+               label=f"Full-year OOS peak avg: {r['peak_avg_eur']:.1f} EUR/MWh")
     ax.axhline(0, color="black", lw=0.6, ls=":")
 
-    # Shade the front-week comparison window
-    ax.axvspan(FRONTWEEK_START, FRONTWEEK_END,
-               alpha=0.07, color="green", label="Front-week ref window (Dec 8-14)")
-
+    ax.set_xlim(Q4_START, Q4_END)
     ax.set_ylim(y_lo, y_hi)
     ax.set_ylabel("Price (EUR/MWh)", fontsize=11)
-    illustrative_tag = "  [front-week ref is ILLUSTRATIVE — conviction/size capped]" if r["eex_is_illustrative"] else ""
     ax.set_title(
-        f"DE-LU Prompt-Curve View  |  OOS: {r['oos_start']} → {r['oos_end']}"
-        f"{illustrative_tag}\n"
-        f"Direction: {r['direction']}  |  Conviction: {r['conviction']}  |  "
-        f"Basis vs front-week: {r['basis_fw_baseload_eur']:+.1f} EUR/MWh  |  "
-        f"Basis vs front-month: {r['basis_fm_baseload_eur']:+.1f} EUR/MWh",
+        f"DE-LU Model Fair-Value View  |  Full OOS year: {r['oos_start']} → {r['oos_end']}  "
+        f"|  Showing Q4 2025 (Oct–Dec) for readability\n"
+        f"Full-year baseload avg: {r['baseload_avg_eur']:.1f}  |  "
+        f"peak avg: {r['peak_avg_eur']:.1f}  |  off-peak avg: {r['offpeak_avg_eur']:.1f} EUR/MWh",
         fontsize=10,
     )
     ax.legend(fontsize=8.5, loc="upper right", ncol=2)
     ax.grid(alpha=0.3)
 
-    # ---- Panel 2: Daily baseload bar chart ----------------------------------
+    # ---- Panel 2: Daily baseload bar chart (Q4 2025 only) ------------------
     ax2 = axes[1]
-    x_dates = [pd.Timestamp(str(d), tz="Europe/Berlin") for d in daily_baseload.index]
-    colors  = [
-        "#4393c3" if pd.Timestamp(str(d), tz="Europe/Berlin") <= FRONTWEEK_END
-        else "#2166ac"
-        for d in daily_baseload.index
-    ]
-    ax2.bar(x_dates, daily_baseload.values,
-            color=colors, alpha=0.75, width=pd.Timedelta("20h"),
-            label="Daily baseload forecast")
-    if len(daily_peak) > 0:
-        x_peak = [pd.Timestamp(str(d), tz="Europe/Berlin") for d in daily_peak.index]
-        ax2.plot(x_peak, daily_peak.values, "o-",
-                 color="darkorange", ms=5, lw=1.4, label="Daily peak forecast")
-    ax2.axhline(r["eex_frontmonth_eur"], color="firebrick", lw=2.0, ls="-",
-                label=f"EEX front-month: {r['eex_frontmonth_eur']:.1f} EUR/MWh")
-    ax2.axhline(r["eex_frontweek_eur"], color="darkred", lw=1.6, ls=":",
-                label=f"EEX front-week: {r['eex_frontweek_eur']:.1f} EUR/MWh")
-    ax2.axhline(0, color="black", lw=0.6, ls=":")
+    daily_idx = pd.to_datetime(daily_baseload.index.astype(str)).tz_localize("Europe/Berlin")
+    q4_daily_mask = (daily_idx >= Q4_START) & (daily_idx <= Q4_END)
+    x_dates = daily_idx[q4_daily_mask]
+    y_daily = daily_baseload.values[q4_daily_mask]
 
+    ax2.bar(x_dates, y_daily, color="#4393c3", alpha=0.8, width=pd.Timedelta("20h"),
+            label="Daily baseload forecast")
+
+    peak_idx = pd.to_datetime(daily_peak.index.astype(str)).tz_localize("Europe/Berlin")
+    q4_peak_mask = (peak_idx >= Q4_START) & (peak_idx <= Q4_END)
+    if q4_peak_mask.any():
+        ax2.plot(peak_idx[q4_peak_mask], daily_peak.values[q4_peak_mask], "o-",
+                 color="darkorange", ms=5, lw=1.4, label="Daily peak forecast")
+
+    ax2.axhline(0, color="black", lw=0.6, ls=":")
+    ax2.set_xlim(Q4_START, Q4_END)
     ax2.set_xlabel("Date", fontsize=11)
     ax2.set_ylabel("Price (EUR/MWh)", fontsize=11)
-    ax2.set_title(
-        "Daily Baseload & Peak Forecasts vs EEX Reference  "
-        "(lighter bars = front-week window)",
-        fontsize=11,
-    )
+    ax2.set_title("Daily Baseload & Peak Forecasts — Q4 2025", fontsize=11)
     ax2.legend(fontsize=9, ncol=2)
     ax2.grid(alpha=0.3)
 
@@ -372,80 +214,39 @@ def _plot_curve(
 # ---------------------------------------------------------------------------
 
 def _write_view_report(r: dict) -> None:
-    illustrative_banner = (
-        "\n> **NOTE:** `EEX_FRONTWEEK_BASELOAD_EUR` is an **illustrative placeholder**, "
-        "not a sourced settlement print — no public EEX Phelix DE Week Future settlement "
-        "could be found (EEX market-data pages only show a rolling 45-day window; full "
-        "history needs an EEX Group DataSource subscription). **Conviction is capped at "
-        "MODERATE and size at HALF** as a result (see `src/config.py` "
-        "`EEX_FRONTWEEK_IS_ILLUSTRATIVE`). The front-month reference (103.99 EUR/MWh, "
-        "ICE ENDEX GABF2026) **is** a real, dated, sourced settlement.\n"
-        if r["eex_is_illustrative"]
-        else ""
-    )
-
     lines = [
-        "# Prompt-Curve Translation — DE-LU Day-Ahead Power\n",
+        "# Model Fair-Value View — DE-LU Day-Ahead Power\n",
         f"**Forecast model:** Ridge (selected model, CLAUDE.md §6)  \n"
-        f"**OOS window:** {r['oos_start']} → {r['oos_end']} (24 days, 576 hourly predictions)  \n"
-        f"**EEX reference:** {r['eex_source']}",
-        illustrative_banner,
-        "",
-        "## 1. Model Fair-Value Aggregates (Ridge Forecast)\n",
-        "### Full OOS period (Dec 8-31 2025)",
-        "",
+        f"**OOS window:** {r['oos_start']} → {r['oos_end']} ({r['n_oos_hours']} hourly predictions)  \n",
+        "No EEX forward print is used in this view (none could be sourced for the OOS "
+        "delivery dates). The directional trading call (direction / conviction / size) "
+        "shown in the morning note is computed in `llm_commentary.py` primarily against "
+        "the **EXAA (Sequence 2) day-ahead auction price** for the same delivery day — a "
+        "real, observable pre-auction print that settles earlier the same day (~10:15 CET "
+        "D-1) than the EPEX auction this model forecasts (~12:00 CET D-1). The earlier "
+        "self-referential basis (forecast vs. trailing D-1/D-7 realised baseload) is kept "
+        "as secondary context. See report.pdf §7 / CLAUDE.md §7 for the rationale.\n",
+        "## 1. Model Fair-Value Aggregates (Ridge Forecast, full OOS year)\n",
         "| Aggregate | EUR/MWh |",
         "|-----------|---------|",
         f"| Baseload average (all hours) | **{r['baseload_avg_eur']:.2f}** |",
         f"| Peak average (08-20 weekday) | **{r['peak_avg_eur']:.2f}** |",
         f"| Off-peak average             | **{r['offpeak_avg_eur']:.2f}** |",
         "",
-        f"### Front-week window ({r['fw_start']} → {r['fw_end']})\n",
-        "| Aggregate | EUR/MWh |",
-        "|-----------|---------|",
-        f"| Baseload average | **{r['fw_baseload_eur']:.2f}** |",
-        f"| Peak average     | **{r['fw_peak_eur']:.2f}** |" if r["fw_peak_eur"] else "",
-        "",
-        "## 2. EEX Reference Settlement\n",
-        "| Contract | Settlement Date | EUR/MWh | Status |",
-        "|----------|----------------|---------|--------|",
-        f"| DE Front-Month Baseload (GABF2026, Jan-2026) | {r['eex_frontmonth_date']} "
-        f"| {r['eex_frontmonth_eur']:.2f} "
-        f"| {'**ILLUSTRATIVE**' if r['eex_frontmonth_is_illustrative'] else 'Real, sourced print'} |",
-        f"| DE Front-Week Baseload (w/c Dec 8)     | {r['eex_frontweek_date']}  "
-        f"| {r['eex_frontweek_eur']:.2f} "
-        f"| {'**ILLUSTRATIVE** — no public print found' if r['eex_frontweek_is_illustrative'] else 'Real, sourced print'} |",
-        "",
-        "## 3. Basis & Directional View\n",
-        "| Comparison | Basis (EUR/MWh) | Note |",
-        "|------------|----------------|------|",
-        f"| Front-week: model Dec 8-14 baseload vs EEX front-week | "
-        f"**{r['basis_fw_baseload_eur']:+.2f}** | **Primary** comparison (matched delivery window) — drives the call below |",
-        f"| Front-month: model full-OOS avg vs EEX front-month | "
-        f"{r['basis_fm_baseload_eur']:+.2f} | Indicative curve-shape context only — Dec-2025 model avg vs. a Jan-2026 contract, "
-        f"**not a matched delivery window**; not used to size or direct the trade |",
-        "",
-        f"### Direction: **{r['direction']}** — Conviction: **{r['conviction']}** — Size: **{r['position_size']}**\n",
-        (
-            "> Conviction/size shown above are **already capped** for the illustrative front-week "
-            "reference (MODERATE / HALF ceiling). No HIGH-conviction / FULL-SIZE call rests on an "
-            "unsourced number.\n" if r["eex_is_illustrative"] else ""
-        ),
-        "",
-        r["view"],
-        "",
-        "## 4. Invalidation Triggers\n",
-        "Position should be re-evaluated if any of the following occur:\n",
+        "> *`figures/prompt_curve.png` plots a Q4 2025 (Oct–Dec) slice of the hourly "
+        "forecast for readability — the table above reflects the full OOS year.*\n",
+        "## 2. Invalidation Triggers\n",
+        "The fair-value level above should be re-evaluated if any of the following occur:\n",
     ]
     for t in r["invalidation_triggers"]:
         lines.append(f"- {t}")
     lines += [
         "",
-        "## 5. Risk-Premium Caveat\n",
-        r["risk_premium_note"],
-        "",
-        "> *Structured output of this module is fed directly into the LLM commentary "
-        "engine (Step 9) as the grounding fact-object — the LLM originates no numbers.*",
+        "> *Aggregates here feed the morning note's Fair-Value Numbers table "
+        "(`src/morning_note.py`). The trading view itself — direction, conviction, "
+        "size — is computed directly from the model's own backtest history in "
+        "`src/llm_commentary.py` and fed into the LLM commentary engine (Step 9) as "
+        "part of the grounding fact-object; the LLM originates no numbers.*",
     ]
 
     path = os.path.join(OUTPUTS_DIR, "prompt_curve_view.md")
@@ -456,16 +257,10 @@ def _write_view_report(r: dict) -> None:
 
 def _print_summary(r: dict) -> None:
     print(
-        f"\n  Prompt-curve summary:\n"
-        f"    OOS baseload avg     : {r['baseload_avg_eur']:7.2f} EUR/MWh\n"
-        f"    OOS peak avg         : {r['peak_avg_eur']:7.2f} EUR/MWh\n"
-        f"    Front-week baseload  : {r['fw_baseload_eur']:7.2f} EUR/MWh  "
-        f"vs EEX {r['eex_frontweek_eur']:.2f} → basis {r['basis_fw_baseload_eur']:+.2f}\n"
-        f"    Full OOS vs EEX fm   : {r['baseload_avg_eur']:7.2f}         "
-        f"vs EEX {r['eex_frontmonth_eur']:.2f} → basis {r['basis_fm_baseload_eur']:+.2f}\n"
-        f"    Direction            : {r['direction']}\n"
-        f"    Conviction           : {r['conviction']}\n"
-        f"    Position size        : {r['position_size']}"
+        f"\n  Prompt-curve summary (full OOS year):\n"
+        f"    Baseload avg : {r['baseload_avg_eur']:7.2f} EUR/MWh\n"
+        f"    Peak avg     : {r['peak_avg_eur']:7.2f} EUR/MWh\n"
+        f"    Off-peak avg : {r['offpeak_avg_eur']:7.2f} EUR/MWh"
     )
 
 
@@ -473,11 +268,10 @@ def _print_summary(r: dict) -> None:
 # C1 — Hourly / block tradable DA view (REVISION_PLAN.md C1)
 #
 # Primary prompt-curve deliverable, independent of any external forward
-# reference (sidesteps the forward-pinning risk in C2/C3 entirely). Reads the
-# model's own OOS hourly forecast as the fair-value curve and flags which
-# individual hours/blocks screen rich or cheap *against that day's own
-# baseload average* — directly tradable via hourly DA bids, peak/off-peak
-# block products, or intraday.
+# reference. Reads the model's own OOS hourly forecast as the fair-value
+# curve and flags which individual hours/blocks screen rich or cheap
+# *against that day's own baseload average* — directly tradable via hourly
+# DA bids, peak/off-peak block products, or intraday.
 # ---------------------------------------------------------------------------
 
 RICH_CHEAP_THRESHOLD_EUR = 15.0  # EUR/MWh deviation from the day's own baseload avg
@@ -557,42 +351,46 @@ def build_hourly_block_view(results: pd.DataFrame,
 
 
 def _plot_hourly_block_view(oos: pd.DataFrame, r: dict) -> None:
+    q4 = oos.loc[(oos.index >= Q4_START) & (oos.index <= Q4_END)]
+
     fig, ax = plt.subplots(figsize=(14, 6))
 
-    y_lo = oos["ridge"].min() - 10
-    y_hi = oos["ridge"].max() + 10
+    y_lo = q4["ridge"].min() - 10
+    y_hi = q4["ridge"].max() + 10
     ax.fill_between(
-        oos.index, y_lo, y_hi,
-        where=oos["is_peak"].values,
+        q4.index, y_lo, y_hi,
+        where=q4["is_peak"].values,
         alpha=0.09, color="orange", step="post",
         label="Peak hours (08-20 weekday)",
     )
-    ax.plot(oos.index, oos["ridge"], color="#2166ac", lw=1.0, alpha=0.85,
+    ax.plot(q4.index, q4["ridge"], color="#2166ac", lw=1.0, alpha=0.85,
             label="Ridge OOS forecast", zorder=3)
-    ax.plot(oos.index, oos["day_baseload_eur"], color="black", lw=1.0, ls="--",
+    ax.plot(q4.index, q4["day_baseload_eur"], color="black", lw=1.0, ls="--",
             alpha=0.6, label="Day's own baseload avg (fair value)", zorder=2)
 
-    rich_mask = oos["deviation_eur"] >= r["rich_threshold_eur"]
-    cheap_mask = (oos["deviation_eur"] <= -r["rich_threshold_eur"]) & ~oos["is_negative"]
-    neg_mask = oos["is_negative"]
-    scarcity_mask = oos["is_scarcity"]
+    rich_mask = q4["deviation_eur"] >= r["rich_threshold_eur"]
+    cheap_mask = (q4["deviation_eur"] <= -r["rich_threshold_eur"]) & ~q4["is_negative"]
+    neg_mask = q4["is_negative"]
+    scarcity_mask = q4["is_scarcity"]
 
-    ax.scatter(oos.index[rich_mask], oos.loc[rich_mask, "ridge"],
+    ax.scatter(q4.index[rich_mask], q4.loc[rich_mask, "ridge"],
                color="firebrick", s=28, zorder=5, label=f"Rich hour (>{r['rich_threshold_eur']:.0f} EUR/MWh)")
-    ax.scatter(oos.index[cheap_mask], oos.loc[cheap_mask, "ridge"],
+    ax.scatter(q4.index[cheap_mask], q4.loc[cheap_mask, "ridge"],
                color="seagreen", s=28, zorder=5, label=f"Cheap hour (<-{r['rich_threshold_eur']:.0f} EUR/MWh)")
-    ax.scatter(oos.index[neg_mask], oos.loc[neg_mask, "ridge"],
+    ax.scatter(q4.index[neg_mask], q4.loc[neg_mask, "ridge"],
                color="purple", s=28, marker="v", zorder=6, label="Negative-price hour")
-    ax.scatter(oos.index[scarcity_mask], oos.loc[scarcity_mask, "ridge"],
+    ax.scatter(q4.index[scarcity_mask], q4.loc[scarcity_mask, "ridge"],
                facecolors="none", edgecolors="black", s=70, marker="o", zorder=4,
                label="Scarcity hour (top decile residual load)")
 
     ax.axhline(0, color="black", lw=0.6, ls=":")
+    ax.set_xlim(Q4_START, Q4_END)
     ax.set_ylim(y_lo, y_hi)
     ax.set_ylabel("Price (EUR/MWh)", fontsize=11)
     ax.set_title(
-        f"Hourly/Block Tradable DA View  |  OOS: {r['oos_start']} → {r['oos_end']}\n"
-        f"Peak-offpeak spread: {r['peak_offpeak_spread_eur']:+.1f} EUR/MWh  |  "
+        f"Hourly/Block Tradable DA View  |  Full OOS year: {r['oos_start']} → {r['oos_end']}  "
+        f"|  Showing Q4 2025 for readability\n"
+        f"Full-year stats — peak-offpeak spread: {r['peak_offpeak_spread_eur']:+.1f} EUR/MWh  |  "
         f"{r['n_rich']} rich / {r['n_cheap']} cheap / {r['n_negative']} negative / "
         f"{r['n_scarcity']} scarcity hours",
         fontsize=11,
@@ -611,11 +409,13 @@ def _write_hourly_block_report(oos: pd.DataFrame, r: dict) -> None:
     lines = [
         "# Hourly/Block Tradable DA View — DE-LU (REVISION_PLAN.md C1)\n",
         f"**OOS window:** {r['oos_start']} → {r['oos_end']} ({r['n_hours']} hourly predictions)  \n",
-        "This view reads the model's own OOS hourly forecast as the fair-value curve — it does "
-        "**not** depend on the EEX forward reference (see `outputs/prompt_curve_view.md` for that, "
-        "separate, comparison). Each hour is flagged against **that day's own baseload average**, "
-        "so the signal is purely about shape: which individual hours or blocks screen rich/cheap "
-        "*within* the day, tradable via hourly DA bids, peak/off-peak block products, or intraday.\n",
+        "This view reads the model's own OOS hourly forecast as the fair-value curve — "
+        "it does not depend on any external forward reference. Each hour is flagged "
+        "against **that day's own baseload average**, so the signal is purely about "
+        "shape: which individual hours or blocks screen rich/cheap *within* the day, "
+        "tradable via hourly DA bids, peak/off-peak block products, or intraday. "
+        "(`figures/hourly_block_view.png` plots a Q4 2025 slice for readability — "
+        "the stats below are full OOS year.)\n",
         "## 1. Shape Summary\n",
         "| Metric | Value |",
         "|---|---:|",
@@ -655,9 +455,11 @@ def _write_hourly_block_report(oos: pd.DataFrame, r: dict) -> None:
         r["guidance"],
         "",
         "## 6. Invalidation Triggers\n",
-        "Same triggers as the forward-basis view: a wind-forecast revision >5 GW, a TTF/gas gap "
-        ">5% overnight, an unplanned outage on REMIT, or a demand surprise all reprice the hourly "
-        "shape, not just the daily level — re-check before acting on any single-hour call above.\n",
+        "These hourly/block calls are invalidated by the same fundamental shocks as the "
+        "model's daily fair-value view (see `outputs/prompt_curve_view.md`): a "
+        "wind-forecast revision >5 GW, a TTF/gas gap >5% overnight, an unplanned outage "
+        "on REMIT, or a demand surprise all reprice the hourly shape, not just the daily "
+        "level — re-check before acting on any single-hour call above.\n",
         "> *Figure: `figures/hourly_block_view.png`.*",
     ]
     path = os.path.join(OUTPUTS_DIR, "hourly_block_view.md")

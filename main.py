@@ -29,6 +29,7 @@ from src.validation import run_validation, write_oos_predictions
 from src.prompt_curve import build_hourly_block_view, translate_curve
 from src.llm_commentary import generate_commentary
 from src.morning_note import build_morning_note
+from src.dashboard import build_dashboard
 
 
 def main():
@@ -65,19 +66,29 @@ def main():
 
     print("\n[Step 8] Prompt-curve translation …")
     curve_view = translate_curve()
-    print(f"  Direction: {curve_view['direction']}  |  Conviction: {curve_view['conviction']}")
+    print(f"  Baseload avg: {curve_view['baseload_avg_eur']} EUR/MWh  |  "
+          f"Peak avg: {curve_view['peak_avg_eur']} EUR/MWh")
 
     print("\n[Step 8b] Hourly/block tradable DA view …")
     hourly_view = build_hourly_block_view(backtest_results)
 
     print("\n[Step 9] LLM trader commentary …")
-    commentary_result = generate_commentary(X, y, backtest_results, curve_view)
+    commentary_result = generate_commentary(X, y, backtest_results)
     c = commentary_result["validated_output"]
-    print(f"  Direction: {c['direction']} | Conviction: {c['conviction']}")
-    print(f"  Drivers: {c['drivers']}")
+    fo = commentary_result["fact_object"]
+    print(f"  Baseload call: {fo['baseload_direction']} (conviction {fo['baseload_conviction']})")
+    print(f"  Tally: {fo['tally_sell']} SELL / {fo['tally_flat']} FLAT / {fo['tally_buy']} BUY")
+    print(f"  Bullish drivers: {c['drivers_bullish']}")
+    print(f"  Bearish drivers: {c['drivers_bearish']}")
 
     print("\n[Step 10] Static morning desk note …")
     build_morning_note(curve_view, hourly_view, commentary_result)
+
+    print("\n[Step 11] Fair-value vs. EXAA dashboard …")
+    dashboard_data = build_dashboard()
+    print(f"  Delivery day: {dashboard_data['meta']['delivery_date']}  |  "
+          f"Tally: {dashboard_data['tally']['sell']} SELL / "
+          f"{dashboard_data['tally']['flat']} FLAT / {dashboard_data['tally']['buy']} BUY")
 
 
 if __name__ == "__main__":

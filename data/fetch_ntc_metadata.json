@@ -1,0 +1,83 @@
+{
+  "fetched_at_utc": "2026-06-22T19:14:45.674655+00:00",
+  "source": "ENTSO-E API (entsoe-py EntsoeRawClient) \u2014 query_net_transfer_capacity_dayahead, custom step-function parser (see module docstring)",
+  "borders_covered": [
+    "NL",
+    "CH",
+    "AT",
+    "CZ",
+    "DK_1",
+    "DK_2"
+  ],
+  "borders_never_available": [
+    "FR",
+    "BE",
+    "PL",
+    "NO_2",
+    "SE_4"
+  ],
+  "borders_never_available_note": "No bilateral Day-Ahead NTC TimeSeries was found for these borders at any point in 2019-2025 (spot-checked across all 7 years). Most likely cause: flow-based market coupling (CWE/Core region covers FR/BE; Core FBMC went live for PL in 2022, but no NTC was found even pre-2022) or, for the NO_2/SE_4 HVDC links, a different capacity-allocation mechanism not published as a simple Day-Ahead NTC.",
+  "coverage_per_column": {
+    "ntc_DE_LU_to_NL_mw": {
+      "start": "2021-01-01 00:00:00+01:00",
+      "end": "2025-12-31 23:00:00+01:00",
+      "rows": 43824
+    },
+    "ntc_NL_to_DE_LU_mw": {
+      "start": "2021-01-01 00:00:00+01:00",
+      "end": "2025-12-31 23:00:00+01:00",
+      "rows": 43824
+    },
+    "ntc_DE_LU_to_CH_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2025-12-31 23:00:00+01:00",
+      "rows": 61368
+    },
+    "ntc_CH_to_DE_LU_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2025-12-31 23:00:00+01:00",
+      "rows": 61368
+    },
+    "ntc_DE_LU_to_AT_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2019-12-31 23:00:00+01:00",
+      "rows": 8760
+    },
+    "ntc_AT_to_DE_LU_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2019-12-31 23:00:00+01:00",
+      "rows": 8760
+    },
+    "ntc_DE_LU_to_CZ_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2022-06-08 23:00:00+02:00",
+      "rows": 30119
+    },
+    "ntc_CZ_to_DE_LU_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2022-06-08 23:00:00+02:00",
+      "rows": 30119
+    },
+    "ntc_DE_LU_to_DK_1_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2025-12-31 23:00:00+01:00",
+      "rows": 61368
+    },
+    "ntc_DK_1_to_DE_LU_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2025-12-31 23:00:00+01:00",
+      "rows": 61368
+    },
+    "ntc_DE_LU_to_DK_2_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2023-12-31 23:00:00+01:00",
+      "rows": 43824
+    },
+    "ntc_DK_2_to_DE_LU_mw": {
+      "start": "2019-01-01 00:00:00+01:00",
+      "end": "2023-12-31 23:00:00+01:00",
+      "rows": 43824
+    }
+  },
+  "pit_note": "Day-Ahead NTC (A61, process A01) is the same publication timing class as the load/wind/solar day-ahead forecasts already used in this pipeline \u2014 known by gate closure, no additional shift needed in features.py."
+}

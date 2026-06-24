@@ -1,8 +1,8 @@
 # Walk-Forward Validation Metrics — DE-LU Day-Ahead Price
 
-Generated: 2026-06-21 10:00 UTC
+Generated: 2026-06-24 01:17 UTC
 
-Backtest period: 2025-01-01 → 2025-12-31  (full calendar year — spans all four seasons)  (8,760 hourly predictions)
+Backtest period: 2025-01-01 → 2025-12-31  (full calendar year — spans all four seasons)  (8,759 hourly predictions)
 
 Training window: **expanding** (all history before the prediction day) — chosen on the 2024 validation period, see outputs/window_tuning.md.
 
@@ -14,8 +14,8 @@ Training window: **expanding** (all history before the prediction day) — chose
 |:----------|------:|-------:|:--------------|
 | Naïve D-1 | 25.97 |  40.45 | +20.9%        |
 | Naïve D-7 | 32.83 |  49.33 | +0.0%         |
-| Ridge     | 16.49 |  25.34 | +49.8%        |
-| LightGBM  | 12.5  |  20.49 | +61.9%        |
+| Ridge     | 14.5  |  23.58 | +55.8%        |
+| LightGBM  | 11.23 |  18.93 | +65.8%        |
 
 
 > Skill score = 1 − MAE_model / MAE(Naïve D-7). Positive = model beats the D-7 naïve benchmark.
@@ -24,55 +24,59 @@ Training window: **expanding** (all history before the prediction day) — chose
 
 |   hour |   Naïve D-1 |   Naïve D-7 |   Ridge |   LightGBM |
 |-------:|------------:|------------:|--------:|-----------:|
-|      0 |       18    |       25.29 |   13.54 |       9.08 |
-|      1 |       17.73 |       25.36 |   13.41 |       8.61 |
-|      2 |       17.8  |       25.47 |   13.51 |       8.63 |
-|      3 |       18.22 |       25.28 |   13.23 |       9.07 |
-|      4 |       17.77 |       24.8  |   12.65 |       8.89 |
-|      5 |       17.49 |       24.3  |   11.65 |       8.5  |
-|      6 |       24.19 |       26.74 |   12.83 |       9.92 |
-|      7 |       34.12 |       34.11 |   17.55 |      12.86 |
-|      8 |       37.4  |       36.35 |   19.53 |      14.61 |
-|      9 |       33.3  |       34.22 |   17.62 |      12.65 |
-|     10 |       29.9  |       37.02 |   17.31 |      13.52 |
-|     11 |       28.26 |       38.14 |   17.98 |      14.3  |
-|     12 |       29.08 |       39.14 |   18.55 |      14.82 |
-|     13 |       30.06 |       39.46 |   19.45 |      14.93 |
-|     14 |       29.67 |       38.37 |   18.93 |      14.54 |
-|     15 |       28.05 |       36.47 |   18.44 |      14.04 |
-|     16 |       29.09 |       38.84 |   18.47 |      15.24 |
-|     17 |       32.82 |       40.15 |   19.4  |      16.73 |
-|     18 |       31.17 |       39.49 |   19.45 |      16.9  |
-|     19 |       34.03 |       44.38 |   22.32 |      18.18 |
-|     20 |       31.23 |       38.75 |   20.01 |      14.96 |
-|     21 |       23.02 |       30.11 |   15.47 |      11.85 |
-|     22 |       15.84 |       23.23 |   12.72 |       9.16 |
-|     23 |       14.93 |       22.45 |   11.71 |       8.03 |
+|      0 |       18    |       25.29 |   11.14 |       7.8  |
+|      1 |       17.73 |       25.36 |   10.81 |       7.62 |
+|      2 |       17.8  |       25.47 |   10.88 |       7.77 |
+|      3 |       18.22 |       25.28 |   10.98 |       7.9  |
+|      4 |       17.77 |       24.8  |   10.71 |       7.75 |
+|      5 |       17.49 |       24.3  |   10.09 |       7.39 |
+|      6 |       24.19 |       26.74 |   11.2  |       9.03 |
+|      7 |       34.12 |       34.11 |   15.71 |      11.58 |
+|      8 |       37.4  |       36.35 |   17.13 |      12.49 |
+|      9 |       33.3  |       34.22 |   14.7  |      11.16 |
+|     10 |       29.9  |       37.02 |   15.1  |      11.91 |
+|     11 |       28.26 |       38.14 |   15.14 |      12.51 |
+|     12 |       29.08 |       39.14 |   15.5  |      13.48 |
+|     13 |       30.06 |       39.46 |   16.48 |      14.25 |
+|     14 |       29.67 |       38.37 |   16.45 |      13.46 |
+|     15 |       28.05 |       36.47 |   16.21 |      12.63 |
+|     16 |       29.09 |       38.84 |   16.68 |      13.91 |
+|     17 |       32.82 |       40.15 |   18.43 |      14.77 |
+|     18 |       31.17 |       39.49 |   19.66 |      16.26 |
+|     19 |       34.03 |       44.38 |   21.99 |      16.25 |
+|     20 |       31.23 |       38.75 |   19.08 |      14.39 |
+|     21 |       23.02 |       30.11 |   14.1  |      10.45 |
+|     22 |       15.84 |       23.23 |   10.46 |       7.67 |
+|     23 |       14.97 |       22.34 |    9.36 |       7.17 |
 
 
 ## 3. MAE by Market Regime
 
 | regime               |   n_hours |   Naïve D-1 |   Naïve D-7 |   Ridge |   LightGBM |
 |:---------------------|----------:|------------:|------------:|--------:|-----------:|
-| Peak (08-20 weekday) |      3393 |       32.85 |       41.79 |   19.91 |      16.43 |
-| Off-peak             |      5367 |       21.61 |       27.17 |   14.32 |      10.02 |
-| High residual load   |      4380 |       24.63 |       31.06 |   15.71 |      12.63 |
-| Low residual load    |      4380 |       27.3  |       34.6  |   17.27 |      12.37 |
+| Peak (08-20 weekday) |      3393 |       32.85 |       41.79 |   18.18 |      14.82 |
+| Off-peak             |      5366 |       21.62 |       27.16 |   12.17 |       8.97 |
+| High residual load   |      4380 |       24.63 |       31.06 |   14.77 |      11.67 |
+| Low residual load    |      4379 |       27.31 |       34.6  |   14.23 |      10.79 |
 
 
 ## 4. Model Selection Decision
 
-Ridge MAE: **16.49 EUR/MWh** | LightGBM MAE: **12.5 EUR/MWh** | Absolute gap: **3.99 EUR/MWh (24.2% of Ridge MAE)**
+**Decided on the 2024 Validation period — the 2025 Test set is never consulted in this choice.**
+
+Ridge MAE: **14.32 EUR/MWh** | LightGBM MAE: **11.22 EUR/MWh** | Absolute gap: **3.10 EUR/MWh (21.7% of Ridge MAE)** (Validation 2024, expanding window — see outputs/window_tuning.md)
 
 
 **Selected model: Ridge.**
 
-LightGBM posts a lower MAE by 3.99 EUR/MWh (24.2%), which looks large in isolation. The selection still goes to Ridge for three reasons:
+LightGBM posts a lower MAE by 3.10 EUR/MWh (21.7%) on Validation, which looks large in isolation. The selection still goes to Ridge for three reasons:
 
 1. **A fair-value signal must be interrogable.** A trader needs to know *why* the model says 95 EUR/MWh, not just that it does. Ridge coefficients are inspectable; a 500-tree ensemble is not. Trust, not raw accuracy, is the production constraint.
 
-2. **Power markets break regime; flexible models break with them.** The backtest now spans the full 2025 calendar year — summer solar saturation, spring negative-price spells, and winter scarcity hours all included — so this isn't a single-season artefact. LightGBM's edge holds up across that range, which is informative, but a regularised linear form still degrades more gracefully than a 500-tree ensemble when the next regime shift (a gas shock, a step-change in renewables build-out) looks nothing like 2019-2025.
+2. **Power markets break regime; flexible models break with them.** The Validation period alone (2024) already includes a meaningful regime mix, and a regularised linear form still degrades more gracefully than a 500-tree ensemble when the next regime shift (a gas shock, a step-change in renewables build-out) looks nothing like 2019-2024.
 
 3. **LightGBM confirms Ridge's design, not that Ridge is mis-specified.** Feature importances (residual load and price lags dominate) are exactly the drivers Ridge is built around. The extra accuracy comes from nonlinear interactions Ridge cannot represent — real but not the dominant source of signal. Including the depth-3 tree figure captures that story without committing to the full black box.
+
+**Out-of-sample confirmation, not part of the decision:** the same gap shows up on the 2025 Test backtest below (LightGBM ahead by 3.27 EUR/MWh), spanning summer solar saturation, spring negative-price spells, and winter scarcity hours. That the pattern holds out-of-sample is reassuring — it means this isn't a single-season artefact of the Validation year — but it confirms a decision already made on Validation, rather than informing it.
 
 LightGBM is retained as a **parallel challenger signal**: run alongside Ridge each day; divergence flags that a nonlinear regime shift may be in play.

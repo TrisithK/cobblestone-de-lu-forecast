@@ -1,0 +1,94 @@
+{
+  "fetched_at_utc": "2026-06-23T01:38:43.512465+00:00",
+  "source": "ENTSO-E API (entsoe-py) \u2014 query_day_ahead_prices, query_load_forecast, query_wind_and_solar_forecast",
+  "price_zones": [
+    "FR",
+    "NL",
+    "BE",
+    "PL",
+    "CZ"
+  ],
+  "load_wind_solar_zones": [
+    "NL",
+    "BE",
+    "PL",
+    "CZ"
+  ],
+  "wind_solar_coverage_years": {
+    "wind_forecast_nl_mw": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "solar_forecast_nl_mw": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "wind_forecast_be_mw": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "solar_forecast_be_mw": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "wind_forecast_pl_mw": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "solar_forecast_pl_mw": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "wind_forecast_cz_mw": [],
+    "solar_forecast_cz_mw": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "solar_forecast_fr_mw": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ]
+  },
+  "cz_no_wind_note": "ENTSO-E publishes no day-ahead wind forecast for CZ at any point in 2019-2025 (consistent with CZ's near-zero installed wind capacity). CZ residual load is load - solar only, not load - wind - solar.",
+  "fr_solar_note": "Round 1 (fetch_fr_co2.py) only fetched FR wind, not solar. Fetched here for the first time; features.py now subtracts it from residual_load_fr_mw, refining round 1's load-minus-wind-only definition.",
+  "pit_note": "Day-ahead prices are realised D-1/D-7 values, same justification as the existing DE price_lag_24h/168h features. Load/wind/solar use ENTSO-E day-ahead forecast document types only, same standard as every other series in this build."
+}

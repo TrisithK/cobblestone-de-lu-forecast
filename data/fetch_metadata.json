@@ -1,17 +1,20 @@
 {
-  "fetched_at_utc": "2026-06-20T11:49:18.813880+00:00",
+  "fetched_at_utc": "2026-06-23T06:34:50.491900+00:00",
   "source_prices": "ENTSO-E GUI CSV \u2014 DA prices, BZN|DE-LU, Sequence 1, 15-min\u21921h mean",
+  "source_exaa": "ENTSO-E GUI CSV \u2014 DA prices, BZN|DE-LU, Sequence 2 (EXAA auction), 15-min\u21921h mean",
   "source_load": "ENTSO-E GUI CSV \u2014 'Day-ahead Total Load Forecast (MW)', BZN|DE-LU",
   "source_wind": "ENTSO-E GUI CSV \u2014 'Day-ahead (MW)' onshore + offshore, BZN|DE-LU",
   "source_solar": "ENTSO-E GUI CSV \u2014 'Day-ahead (MW)' solar, BZN|DE-LU",
   "source_ttf": "Yahoo Finance \u2014 TTF=F front-month daily close (yfinance)",
   "history_start": "2019-01-01",
-  "history_end": "2026-06-20",
+  "history_end": "2025-12-31",
+  "history_end_requested": "2026-06-23",
   "price_rows": 61368,
+  "exaa_rows": 61368,
   "load_rows": 61368,
   "wind_solar_rows": 61368,
-  "ttf_rows": 1762,
-  "pit_note": "Load/wind/solar use day-ahead forecast columns only. Actual columns are present in the raw CSVs but are NOT loaded. This satisfies the point-in-time firewall: all features knowable by 12:00 D-1.",
-  "zone_note": "DE-LU bidding zone only. History starts 2019-01-01 to exclude the pre-split DE-AT-LU regime (zone split October 2018).",
-  "note_ttf_truncated": "TTF truncated to 2026-01-01 to match hourly series range (last date: 2025-12-31)"
+  "ttf_rows": 1879,
+  "pit_note": "Load/wind/solar use day-ahead forecast columns only. Actual columns are present in the raw CSVs but are NOT loaded. This satisfies the point-in-time firewall: all features knowable by 12:00 D-1. EXAA (Sequence 2) is a real settled auction price, not a forecast \u2014 its own gate closure (~10:15 CET D-1) is earlier than the 12:00 D-1 cutoff, so it is point-in-time safe by the same standard.",
+  "exaa_note": "[v2 round 4] EXAA (Energy Exchange Austria) runs its own day-ahead auction for BZN|DE-LU, published by ENTSO-E under the same price document as 'Sequence 2' (Sequence 1 is the main EPEX SPOT auction, the forecast target). EXAA's auction settles earlier the same day (~10:15 CET D-1) than EPEX's (~12:00 CET D-1), making it a genuine, sourced, observable pre-auction market reference for delivery day D \u2014 used in src/llm_commentary.py as the primary basis for the prompt-curve trading decision, replacing the self-referential trailing-baseload comparison as primary.",
+  "zone_note": "DE-LU bidding zone only. History starts 2019-01-01 to exclude the pre-split DE-AT-LU regime (zone split October 2018)."
 }

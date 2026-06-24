@@ -51,8 +51,25 @@ RIDGE_FEATURES = [
     "residual_load_mw", "residual_load_sq", "residual_load_high",
     "price_lag_24h", "price_lag_168h",
     "rolling_resid_mean_7d", "rolling_resid_std_7d",
+    "rolling_price_mean_7d", "rolling_price_std_7d",
     "ttf_eur_mwh",
-    "ttf_resid_interaction",  # A3 (optional): lets Ridge re-slope with gas
+    "ttf_resid_interaction",  # optional: lets Ridge re-slope with gas
+    "residual_load_fr_mw",        # v2: cross-border (FR) demand/supply pressure
+    "gas_co2_pressure_index",     # v2: standardised TTF + CO2-proxy composite
+    "ntc_import_capacity_mw",          # v2: Forecast Transfer Capacity (NTC)
+    "ntc_export_capacity_mw",          # v2: Forecast Transfer Capacity (NTC)
+    "ntc_net_transfer_capacity_mw",    # v2: Forecast Transfer Capacity (NTC)
+    # v2 round 3: neighbor zone price lags (FR/NL/BE/PL/CZ) — additive only,
+    # same as DE's own price lags but for cross-border zones.
+    "price_lag_24h_fr", "price_lag_168h_fr",
+    "price_lag_24h_nl", "price_lag_168h_nl",
+    "price_lag_24h_be", "price_lag_168h_be",
+    "price_lag_24h_pl", "price_lag_168h_pl",
+    "price_lag_24h_cz", "price_lag_168h_cz",
+    # v2 round 3: neighbor zone residual load — additive only, no hinge term
+    # (not DE-LU's own merit-order driver the way DE residual load is).
+    "residual_load_nl_mw", "residual_load_be_mw",
+    "residual_load_pl_mw", "residual_load_cz_mw",
 ]
 
 # LightGBM + tree: raw ordinal calendar is fine for tree-based models;
@@ -64,7 +81,22 @@ LGBM_FEATURES = [
     "residual_load_mw", "residual_load_sq", "residual_load_high",
     "price_lag_24h", "price_lag_168h",
     "rolling_resid_mean_7d", "rolling_resid_std_7d",
+    "rolling_price_mean_7d", "rolling_price_std_7d",
     "ttf_eur_mwh",
+    "residual_load_fr_mw",        # v2: cross-border (FR) demand/supply pressure
+    "gas_co2_pressure_index",     # v2: standardised TTF + CO2-proxy composite
+    "ntc_import_capacity_mw",          # v2: Forecast Transfer Capacity (NTC)
+    "ntc_export_capacity_mw",          # v2: Forecast Transfer Capacity (NTC)
+    "ntc_net_transfer_capacity_mw",    # v2: Forecast Transfer Capacity (NTC)
+    # v2 round 3: neighbor zone price lags (FR/NL/BE/PL/CZ)
+    "price_lag_24h_fr", "price_lag_168h_fr",
+    "price_lag_24h_nl", "price_lag_168h_nl",
+    "price_lag_24h_be", "price_lag_168h_be",
+    "price_lag_24h_pl", "price_lag_168h_pl",
+    "price_lag_24h_cz", "price_lag_168h_cz",
+    # v2 round 3: neighbor zone residual load
+    "residual_load_nl_mw", "residual_load_be_mw",
+    "residual_load_pl_mw", "residual_load_cz_mw",
 ]
 
 

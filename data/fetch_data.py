@@ -138,6 +138,53 @@ def load_prices() -> pd.Series:
 
 
 # ---------------------------------------------------------------------------
+# 1b. EXAA day-ahead auction price (Sequence 2) — [v2 round 4]
+#
+# ENTSO-E's DE-LU day-ahead price document carries two parallel auctions for
+# the same bidding zone and the same delivery hours: "Sequence 1" is the main
+# EPEX SPOT hourly auction (gate closure ~12:00 CET D-1 — this is the target
+# series and the firewall cutoff used everywhere else in this build);
+# "Sequence 2" is EXAA's (Energy Exchange Austria) own day-ahead auction,
+# settled earlier the same day (EXAA's auction closes ~10:00 CET D-1, results
+# ~10:15-10:30 CET D-1 — well before the 12:00 D-1 cutoff).
+#
+# This makes EXAA Sequence 2 a genuine, sourced, point-in-time-safe
+# OBSERVABLE pre-auction reference price for delivery day D — a real
+# settlement for the same hours being forecast, not a forecast or proxy
+# itself. This is the reference CLAUDE.md §7 originally wanted (a real
+# pre-auction print) but couldn't source from EEX; EXAA's own quarter-hourly
+# auction, already present in the committed ENTSO-E export, fills that gap
+# directly. Quarter-hourly (15-min) like the rest of the raw exports;
+# resampled to 1h mean for the same reason as everywhere else in this file.
+# ---------------------------------------------------------------------------
+
+def load_exaa_prices() -> pd.Series:
+    print("Loading EXAA day-ahead auction prices (Sequence 2) …")
+    files = _glob("GUI_ENERGY_PRICES_*.csv")
+    chunks = []
+    for f in files:
+        df = pd.read_csv(f)
+        mask = (df["Area"] == AREA) & (df["Sequence"] == "Sequence 2")
+        df = df[mask].copy()
+        if df.empty:
+            print(f"  WARNING: {os.path.basename(f)} — no DE-LU Sequence 2 rows, skipping")
+            continue
+        df.index = _parse_mtu_start(df["MTU (UTC)"])
+        s = pd.to_numeric(df["Day-ahead Price (EUR/MWh)"], errors="coerce")
+        s.name = "exaa_price_eur_mwh"
+        s.index.name = "timestamp"
+        chunks.append(s)
+
+    raw = pd.concat(chunks).sort_index()
+    raw = raw[~raw.index.duplicated(keep="first")]
+    raw = raw.loc[HISTORY_START:]
+    hourly = raw.resample("1h").mean()
+    hourly.name = "exaa_price_eur_mwh"
+    print(f"  → {len(hourly):,} hourly rows | {hourly.index[0]} → {hourly.index[-1]}")
+    return hourly
+
+
+# ---------------------------------------------------------------------------
 # 2. Load forecast
 #    Column: 'Day-ahead Total Load Forecast (MW)'  ← NOT 'Actual Total Load (MW)'
 # ---------------------------------------------------------------------------
@@ -220,6 +267,7 @@ def main():
     print("=" * 55)
 
     prices = load_prices()
+    exaa = load_exaa_prices()
     load = load_load_forecast()
     wind_solar = load_wind_solar_forecast()
     ttf = load_ttf()
@@ -228,9 +276,13 @@ def main():
     # Point-in-time firewall assertion (CLAUDE.md §3.1)
     # Load / wind / solar are day-ahead FORECAST columns, confirmed by column
     # name selection above. Actuals columns exist in the CSVs but are ignored.
+    # EXAA (Sequence 2) is a real settled auction, not a forecast — its PIT
+    # safety comes from its own gate closure (~10:15 CET D-1), earlier than
+    # the ~12:00 CET D-1 cutoff used everywhere else in this build.
     # -----------------------------------------------------------------------
     print("\nPoint-in-time firewall:")
     print("  prices     → Day-ahead auction settlement (Sequence 1) ✓")
+    print("  exaa price → EXAA day-ahead auction (Sequence 2), settles ~10:15 CET D-1 ✓")
     print("  load       → 'Day-ahead Total Load Forecast (MW)' ✓")
     print("  wind/solar → 'Day-ahead (MW)' ✓")
     print("  (Actual columns present in CSVs but NOT used) ✓")
@@ -239,28 +291,53 @@ def main():
     # Save
     # -----------------------------------------------------------------------
     prices.to_frame().to_parquet(os.path.join(DATA_DIR, "da_prices.parquet"))
+    exaa.to_frame().to_parquet(os.path.join(DATA_DIR, "exaa_prices.parquet"))
     load.to_frame().to_parquet(os.path.join(DATA_DIR, "load_forecast.parquet"))
     wind_solar.to_parquet(os.path.join(DATA_DIR, "wind_solar_forecast.parquet"))
     if not ttf.empty:
         ttf.to_frame().to_parquet(os.path.join(DATA_DIR, "ttf_daily.parquet"))
 
+    # The raw MTU columns are UTC; converting to Europe/Berlin shifts the very
+    # last 15-min interval of the year into a partial first-hour bucket of the
+    # following local day (e.g. 2025-12-31 23:45 UTC -> 2026-01-01 00:00 CET).
+    # Report the last *fully populated* local day (>=23 hours, allowing for a
+    # DST short day) rather than that partial trailing bucket.
+    day_counts = prices.groupby(prices.index.date).size()
+    full_days = day_counts[day_counts >= 23]
+    last_full_day = full_days.index[-1] if len(full_days) else prices.index[-1].date()
+
     metadata = {
         "fetched_at_utc": datetime.now(timezone.utc).isoformat(),
         "source_prices": "ENTSO-E GUI CSV — DA prices, BZN|DE-LU, Sequence 1, 15-min→1h mean",
+        "source_exaa": "ENTSO-E GUI CSV — DA prices, BZN|DE-LU, Sequence 2 (EXAA auction), 15-min→1h mean",
         "source_load": "ENTSO-E GUI CSV — 'Day-ahead Total Load Forecast (MW)', BZN|DE-LU",
         "source_wind": "ENTSO-E GUI CSV — 'Day-ahead (MW)' onshore + offshore, BZN|DE-LU",
         "source_solar": "ENTSO-E GUI CSV — 'Day-ahead (MW)' solar, BZN|DE-LU",
         "source_ttf": "Yahoo Finance — TTF=F front-month daily close (yfinance)",
         "history_start": str(HISTORY_START.date()),
-        "history_end": str(HISTORY_END.date()),
+        "history_end": str(last_full_day),
+        "history_end_requested": str(HISTORY_END.date()),
         "price_rows": len(prices),
+        "exaa_rows": len(exaa),
         "load_rows": len(load),
         "wind_solar_rows": len(wind_solar),
         "ttf_rows": len(ttf),
         "pit_note": (
             "Load/wind/solar use day-ahead forecast columns only. "
             "Actual columns are present in the raw CSVs but are NOT loaded. "
-            "This satisfies the point-in-time firewall: all features knowable by 12:00 D-1."
+            "This satisfies the point-in-time firewall: all features knowable by 12:00 D-1. "
+            "EXAA (Sequence 2) is a real settled auction price, not a forecast — its own "
+            "gate closure (~10:15 CET D-1) is earlier than the 12:00 D-1 cutoff, so it is "
+            "point-in-time safe by the same standard."
+        ),
+        "exaa_note": (
+            "[v2 round 4] EXAA (Energy Exchange Austria) runs its own day-ahead auction for "
+            "BZN|DE-LU, published by ENTSO-E under the same price document as 'Sequence 2' "
+            "(Sequence 1 is the main EPEX SPOT auction, the forecast target). EXAA's auction "
+            "settles earlier the same day (~10:15 CET D-1) than EPEX's (~12:00 CET D-1), making "
+            "it a genuine, sourced, observable pre-auction market reference for delivery day D "
+            "— used in src/llm_commentary.py as the primary basis for the prompt-curve trading "
+            "decision, replacing the self-referential trailing-baseload comparison as primary."
         ),
         "zone_note": (
             "DE-LU bidding zone only. History starts 2019-01-01 to exclude "
@@ -272,6 +349,7 @@ def main():
 
     print("\nOutputs written to data/")
     print(f"  da_prices.parquet          {len(prices):>7,} rows")
+    print(f"  exaa_prices.parquet        {len(exaa):>7,} rows")
     print(f"  load_forecast.parquet      {len(load):>7,} rows")
     print(f"  wind_solar_forecast.parquet{len(wind_solar):>7,} rows")
     print(f"  ttf_daily.parquet          {len(ttf):>7,} rows")

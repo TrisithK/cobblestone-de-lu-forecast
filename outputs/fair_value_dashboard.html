@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DE-LU Fair Value vs. EXAA — 2025-12-31</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 1100px;
+         margin: 2rem auto; padding: 0 1.5rem; color: #1a1a1a; line-height: 1.5; background: #fcfcfc; }
+  h1 { font-size: 1.7rem; margin-bottom: 0.2rem; }
+  h2 { font-size: 1.2rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; margin-top: 2.2rem; }
+  .meta { color: #666; font-size: 0.85rem; margin-top: 0; }
+  .badge { display: inline-block; padding: 0.25rem 0.7rem; border-radius: 4px; font-size: 0.78rem;
+           font-weight: 700; letter-spacing: 0.03em; background: #fff3cd; color: #7a5b00;
+           border: 1px solid #f0d68a; }
+  .mode-note { background: #fff8e1; border-left: 3px solid #f2b705; padding: 0.5rem 1rem;
+               font-size: 0.85rem; margin: 0.6rem 0 1.2rem; color: #444; }
+  .kpi-row { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1rem 0; }
+  .kpi-card { flex: 1 1 150px; background: #fff; border: 1px solid #e2e2e2; border-radius: 8px;
+              padding: 0.8rem 1rem; }
+  .kpi-label { font-size: 0.72rem; color: #777; text-transform: uppercase; letter-spacing: 0.04em; }
+  .kpi-value { font-size: 1.45rem; font-weight: 700; margin-top: 0.15rem; }
+  .kpi-sub { font-size: 0.78rem; color: #888; margin-top: 0.15rem; }
+  .kpi-unit { font-size: 0.6em; }
+  .kpi-card.sell .kpi-value { color: #b3261e; }
+  .kpi-card.buy .kpi-value { color: #1a7a3c; }
+  .kpi-card.flat .kpi-value { color: #555; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid #e2e2e2; padding: 0.4rem 0.55rem; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: #fafafa; font-size: 0.78rem; text-transform: uppercase; color: #666; }
+  .pill { display: inline-block; padding: 0.12rem 0.55rem; border-radius: 10px; font-size: 0.78rem;
+          font-weight: 700; }
+  .pill.sell { background: #fdeaea; color: #b3261e; }
+  .pill.buy { background: #e3f5e9; color: #1a7a3c; }
+  .pill.flat { background: #eee; color: #555; }
+  .shape { font-size: 0.78rem; padding: 0.1rem 0.4rem; border-radius: 4px; }
+  .shape.rich { background: #fdeaea; color: #b3261e; }
+  .shape.cheap { background: #e3f5e9; color: #1a7a3c; }
+  .shape.neutral { color: #999; }
+  .hour-strip { display: flex; flex-wrap: wrap; gap: 3px; margin: 0.8rem 0; }
+  .hour-cell { width: 44px; text-align: center; border-radius: 5px; padding: 0.3rem 0.1rem;
+               font-size: 0.72rem; }
+  .hour-cell.sell { background: #fdeaea; color: #8c1d17; }
+  .hour-cell.buy { background: #e3f5e9; color: #14602f; }
+  .hour-cell.flat { background: #ececec; color: #555; }
+  .hour-num { font-weight: 700; font-size: 0.74rem; }
+  .hour-dir { font-weight: 700; font-size: 0.95rem; }
+  .hour-conv { font-size: 0.68rem; opacity: 0.8; }
+  .tally-line { font-size: 0.95rem; margin: 0.3rem 0 1rem; }
+  .chart-wrap { background: #fff; border: 1px solid #e2e2e2; border-radius: 8px; padding: 0.8rem;
+                margin: 0.8rem 0; }
+  canvas { max-height: 320px; }
+  .driver-cols { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .driver-col { flex: 1 1 260px; }
+  .driver-col h3 { font-size: 0.95rem; margin: 0.4rem 0; }
+  ul { padding-left: 1.3rem; }
+  blockquote { border-left: 3px solid #aaa; margin: 0.5rem 0; padding: 0.4rem 1rem; color: #333;
+               background: #fafafa; }
+  .footer { color: #888; font-size: 0.8rem; margin-top: 2.5rem; border-top: 1px solid #ddd;
+            padding-top: 0.8rem; }
+  .footer p { margin: 0.35rem 0; }
+</style>
+</head>
+<body>
+
+<h1>DE-LU Day-Ahead Fair Value vs. EXAA</h1>
+<p class="meta">Delivery day 2025-12-31 &middot; generated 2026-06-24T01:17:57.781971+00:00 &middot;
+<span class="badge">STATIC BACKTEST REPLAY</span></p>
+<div class="mode-note">This page replays one delivery day from the committed 2019-2025 data snapshot. There is no live feed and no refresh schedule — the snapshot ends 2025-12-31. Regenerate with build_dashboard(delivery_date=...) (src/dashboard.py) to replay a different day in predictions.csv.</div>
+
+<h2>Key Metrics</h2>
+<div class="kpi-row"><div class="kpi-card "><div class="kpi-label">Fair Value (baseload)</div><div class="kpi-value">76.49 <span class="kpi-unit">EUR/MWh</span></div></div><div class="kpi-card "><div class="kpi-label">EXAA (baseload)</div><div class="kpi-value">84.00 <span class="kpi-unit">EUR/MWh</span></div></div><div class="kpi-card sell"><div class="kpi-label">Baseload Basis (FV − EXAA)</div><div class="kpi-value">-7.51</div><div class="kpi-sub">conviction 0.518 → <strong>SELL</strong></div></div><div class="kpi-card "><div class="kpi-label">Selected Model</div><div class="kpi-value">Ridge</div></div><div class="kpi-card "><div class="kpi-label">Model Accuracy (Test 2025)</div><div class="kpi-value">MAE 14.50</div><div class="kpi-sub">RMSE 23.58 EUR/MWh — no MAPE (prices cross zero)</div></div></div>
+
+<h2>Hourly Fair Value vs. EXAA</h2>
+<p class="meta">Both series are point-in-time safe for a D-1 bidding decision: Fair Value is this model's own
+forecast, EXAA is a real pre-auction print settling ~10:15 CET D-1. The realised EPEX settlement (this model's
+training target) is deliberately not shown here — see the footer.</p>
+<div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+<table>
+<tr><th>Period</th><th>Fair Value avg</th><th>EXAA avg</th></tr>
+<tr><td>Baseload (00-24)</td><td>76.49</td><td>84.00</td></tr><tr><td>Peak (08-20 weekday)</td><td>80.85</td><td>86.67</td></tr><tr><td>Off-peak</td><td>71.33</td><td>80.84</td></tr>
+</table>
+
+<h2>Per-Hour Decision Strip</h2>
+<p class="tally-line">net: <strong>22 SELL</strong> / 2 FLAT / 0 BUY (of 24 hours, FLAT_CONVICTION = 0.25)</p>
+<div class="hour-strip"><div class="hour-cell sell"><div class="hour-num">00</div><div class="hour-dir">S</div><div class="hour-conv">0.4</div></div><div class="hour-cell sell"><div class="hour-num">01</div><div class="hour-dir">S</div><div class="hour-conv">0.7</div></div><div class="hour-cell sell"><div class="hour-num">02</div><div class="hour-dir">S</div><div class="hour-conv">0.6</div></div><div class="hour-cell sell"><div class="hour-num">03</div><div class="hour-dir">S</div><div class="hour-conv">1.0</div></div><div class="hour-cell sell"><div class="hour-num">04</div><div class="hour-dir">S</div><div class="hour-conv">1.1</div></div><div class="hour-cell sell"><div class="hour-num">05</div><div class="hour-dir">S</div><div class="hour-conv">1.3</div></div><div class="hour-cell sell"><div class="hour-num">06</div><div class="hour-dir">S</div><div class="hour-conv">0.7</div></div><div class="hour-cell sell"><div class="hour-num">07</div><div class="hour-dir">S</div><div class="hour-conv">0.4</div></div><div class="hour-cell flat"><div class="hour-num">08</div><div class="hour-dir">F</div><div class="hour-conv">0.0</div></div><div class="hour-cell flat"><div class="hour-num">09</div><div class="hour-dir">F</div><div class="hour-conv">0.2</div></div><div class="hour-cell sell"><div class="hour-num">10</div><div class="hour-dir">S</div><div class="hour-conv">0.4</div></div><div class="hour-cell sell"><div class="hour-num">11</div><div class="hour-dir">S</div><div class="hour-conv">0.6</div></div><div class="hour-cell sell"><div class="hour-num">12</div><div class="hour-dir">S</div><div class="hour-conv">0.5</div></div><div class="hour-cell sell"><div class="hour-num">13</div><div class="hour-dir">S</div><div class="hour-conv">0.4</div></div><div class="hour-cell sell"><div class="hour-num">14</div><div class="hour-dir">S</div><div class="hour-conv">0.4</div></div><div class="hour-cell sell"><div class="hour-num">15</div><div class="hour-dir">S</div><div class="hour-conv">0.3</div></div><div class="hour-cell sell"><div class="hour-num">16</div><div class="hour-dir">S</div><div class="hour-conv">0.3</div></div><div class="hour-cell sell"><div class="hour-num">17</div><div class="hour-dir">S</div><div class="hour-conv">0.4</div></div><div class="hour-cell sell"><div class="hour-num">18</div><div class="hour-dir">S</div><div class="hour-conv">0.4</div></div><div class="hour-cell sell"><div class="hour-num">19</div><div class="hour-dir">S</div><div class="hour-conv">0.3</div></div><div class="hour-cell sell"><div class="hour-num">20</div><div class="hour-dir">S</div><div class="hour-conv">0.4</div></div><div class="hour-cell sell"><div class="hour-num">21</div><div class="hour-dir">S</div><div class="hour-conv">0.7</div></div><div class="hour-cell sell"><div class="hour-num">22</div><div class="hour-dir">S</div><div class="hour-conv">1.2</div></div><div class="hour-cell sell"><div class="hour-num">23</div><div class="hour-dir">S</div><div class="hour-conv">1.6</div></div></div>
+<p class="meta">Each cell: hour, direction (B=BUY / S=SELL / F=FLAT), conviction (|basis| / that hour's own Ridge backtest MAE).
+Pure arithmetic — see src/dashboard.py — never an LLM judgement.</p>
+
+<h2>Block-Level Decision</h2>
+<table>
+<tr><th>Block</th><th>Hours</th><th>FV avg</th><th>EXAA avg</th><th>Basis</th><th>MAE avg</th><th>Conviction</th><th>Direction</th></tr>
+<tr><td>Baseload (00-24)</td><td>24</td><td>76.49</td><td>84.00</td><td>-7.51</td><td>14.50</td><td>0.518</td><td><span class="pill sell">SELL</span></td></tr><tr><td>Peak (08-20 weekday)</td><td>13</td><td>80.85</td><td>86.67</td><td>-5.82</td><td>17.12</td><td>0.340</td><td><span class="pill sell">SELL</span></td></tr><tr><td>Off-peak</td><td>11</td><td>71.33</td><td>80.84</td><td>-9.51</td><td>11.40</td><td>0.834</td><td><span class="pill sell">SELL</span></td></tr>
+</table>
+<p class="meta">No single whole-day call is made — the baseload row above is the closest thing to a one-glance verdict,
+but the per-hour strip is the actual headline.</p>
+
+<h2>Hourly Detail</h2>
+<table>
+<tr><th>Hour</th><th>Fair Value</th><th>EXAA</th><th>Basis</th><th>Direction</th><th>Conviction</th><th>Shape vs. own baseload</th></tr>
+<tr><td>00:00</td><td>85.30</td><td>90.00</td><td>-4.71</td><td><span class="pill sell">SELL</span></td><td>0.42</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>01:00</td><td>79.71</td><td>87.57</td><td>-7.87</td><td><span class="pill sell">SELL</span></td><td>0.73</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>02:00</td><td>75.82</td><td>82.30</td><td>-6.49</td><td><span class="pill sell">SELL</span></td><td>0.60</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>03:00</td><td>70.83</td><td>81.37</td><td>-10.54</td><td><span class="pill sell">SELL</span></td><td>0.96</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>04:00</td><td>67.55</td><td>78.83</td><td>-11.28</td><td><span class="pill sell">SELL</span></td><td>1.05</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>05:00</td><td>67.13</td><td>79.95</td><td>-12.82</td><td><span class="pill sell">SELL</span></td><td>1.27</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>06:00</td><td>71.40</td><td>79.03</td><td>-7.63</td><td><span class="pill sell">SELL</span></td><td>0.68</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>07:00</td><td>79.69</td><td>85.80</td><td>-6.11</td><td><span class="pill sell">SELL</span></td><td>0.39</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>08:00</td><td>85.64</td><td>85.85</td><td>-0.21</td><td><span class="pill flat">FLAT</span></td><td>0.01</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>09:00</td><td>83.36</td><td>85.68</td><td>-2.32</td><td><span class="pill flat">FLAT</span></td><td>0.16</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>10:00</td><td>76.44</td><td>82.70</td><td>-6.26</td><td><span class="pill sell">SELL</span></td><td>0.41</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>11:00</td><td>72.46</td><td>80.80</td><td>-8.34</td><td><span class="pill sell">SELL</span></td><td>0.55</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>12:00</td><td>71.47</td><td>78.77</td><td>-7.31</td><td><span class="pill sell">SELL</span></td><td>0.47</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>13:00</td><td>72.29</td><td>78.19</td><td>-5.90</td><td><span class="pill sell">SELL</span></td><td>0.36</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>14:00</td><td>75.40</td><td>82.40</td><td>-7.01</td><td><span class="pill sell">SELL</span></td><td>0.43</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>15:00</td><td>81.59</td><td>86.00</td><td>-4.41</td><td><span class="pill sell">SELL</span></td><td>0.27</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>16:00</td><td>86.75</td><td>92.20</td><td>-5.45</td><td><span class="pill sell">SELL</span></td><td>0.33</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>17:00</td><td>91.41</td><td>98.80</td><td>-7.39</td><td><span class="pill sell">SELL</span></td><td>0.40</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>18:00</td><td>90.46</td><td>98.75</td><td>-8.29</td><td><span class="pill sell">SELL</span></td><td>0.42</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>19:00</td><td>85.92</td><td>91.56</td><td>-5.64</td><td><span class="pill sell">SELL</span></td><td>0.26</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>20:00</td><td>77.86</td><td>85.06</td><td>-7.20</td><td><span class="pill sell">SELL</span></td><td>0.38</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>21:00</td><td>69.32</td><td>78.88</td><td>-9.57</td><td><span class="pill sell">SELL</span></td><td>0.68</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>22:00</td><td>63.95</td><td>76.28</td><td>-12.34</td><td><span class="pill sell">SELL</span></td><td>1.18</td><td><span class="shape neutral">NEUTRAL</span></td></tr><tr><td>23:00</td><td>53.96</td><td>69.26</td><td>-15.30</td><td><span class="pill sell">SELL</span></td><td>1.64</td><td><span class="shape cheap">CHEAP</span></td></tr>
+</table>
+<p class="meta">"Shape" flags RICH/CHEAP at &ge;15 EUR/MWh deviation from this day's
+own fair-value baseload average — a within-day shape signal, distinct from the basis-vs-EXAA direction above.</p>
+
+<h2>Fundamental Drivers</h2>
+<div class="driver-cols">
+  <div class="driver-col">
+    <h3>DE: Load / Wind / Solar / Residual Load</h3>
+    <div class="chart-wrap"><canvas id="deDriverChart"></canvas></div>
+  </div>
+  <div class="driver-col">
+    <h3>FR: Load / Wind (cross-border pressure proxy)</h3>
+    <div class="chart-wrap"><canvas id="frDriverChart"></canvas></div>
+  </div>
+</div>
+<table>
+<tr><th>Level driver</th><th>Value</th></tr>
+<tr><td>TTF front-month (gas)</td><td>27.77 EUR/MWh</td></tr><tr><td>EU ETS CO2 proxy (CARB.L)</td><td>32.22 USD — tradable ETC, <strong>not</strong> an official EUR/tonne EUA print</td></tr><tr><td>Gas+CO2 pressure index</td><td>1.07 (standardised, unitless — see CLAUDE.md §5)</td></tr><tr><td>NTC net transfer capacity</td><td>-3,200 MW (export − import, whichever borders publish — see CLAUDE.md §2)</td></tr><tr><td>FR residual load forecast</td><td>62,427 MW</td></tr>
+</table>
+
+<h2>LLM Driver Commentary</h2>
+<p class="meta">Rendered verbatim from the cached LLM output — the model narrates the code-computed tally above,
+it does not originate direction or conviction.</p>
+<div class="driver-cols">
+  <div class="driver-col">
+    <h3>Bullish drivers</h3>
+    <ul><li>Trailing realised baseload at 78.57 EUR/MWh sits only 2.08 EUR below EXAA, suggesting EXAA is already pricing a meaningful premium to recent settlement history</li><li>Solar delta -1,798 MW vs prior day modestly tightens residual load at the margin relative to wind offset</li></ul>
+  </div>
+  <div class="driver-col">
+    <h3>Bearish drivers</h3>
+    <ul><li>Wind surge +6,750 MW vs prior day collapses residual load by 8,656 MW to 24,998 MW — 23rd percentile — crushing marginal cost support well below EXAA print of 84.00 EUR/MWh</li><li>Model baseload fair value 76.49 EUR/MWh implies basis vs. EXAA of -7.51 EUR/MWh, with 22 of 24 hours screening SELL vs. zero hours screening BUY</li><li>Load demand -3,703 MW vs prior day (New Year&#x27;s Eve holiday suppression) amplifies the bearish residual load dynamic</li><li>NTC net transfer capacity at -3,200 MW (net export constraint) limits upside absorption of surplus generation, reinforcing downward price pressure on DE-LU</li></ul>
+  </div>
+</div>
+<h3>Invalidation triggers</h3>
+<ul><li>Wind actual materially underperforms forecast — a shortfall of 5,000+ MW intraday would close the basis gap and invalidate the SELL</li><li>Unexpected demand recovery (cold snap, industrial return) pushing load significantly above the 55,427 MW forecast</li><li>Gas/CO2 complex spike — TTF front-month well above 27.77 EUR/MWh or CO2 proxy above 32.22 USD reprices the marginal cost stack toward EXAA levels</li><li>NTC constraint reversal or significant cross-border flow change importing high-priced power into DE-LU and compressing the surplus</li></ul>
+<h3>Commentary</h3>
+<blockquote>SELL conviction MODERATE: 22 of 24 hours screen SELL, zero screen BUY, with model baseload fair value at 76.49 EUR/MWh versus EXAA at 84.00 EUR/MWh — a -7.51 EUR/MWh basis driven primarily by a wind surge of +6,750 MW and a demand-holiday load drop of -3,703 MW collapsing residual load to the 23rd percentile at 24,998 MW. Position sizing is QUARTER SIZE given a backtest MAE of +/-14.50 EUR/MWh that spans the full basis, meaning the signal clears the threshold on tally count but not on magnitude decisiveness. Key uncertainty is wind delivery risk on New Year&#x27;s Eve — any material underperformance of the 28,807 MW wind forecast rapidly erodes the short thesis.</blockquote>
+
+<div class="footer">
+<p>ENTSO-E + EXAA + yfinance committed snapshot, 2019-01-01 to 2025-12-31 (DE-LU).</p>
+<p>Selected model Ridge: Test-2025 MAE 14.50 EUR/MWh, RMSE 23.58 EUR/MWh, skill vs. D-7 naive +55.8%. No MAPE is reported: DE-LU day-ahead prices cross zero and go negative on high-renewables hours, so MAPE is undefined at zero and explosive near it.</p>
+<p>LightGBM is a nonlinearity-check challenger, not the selected model (Test-2025 MAE 11.23, RMSE 18.93 — better on raw accuracy, but a regularised linear model is kept for interpretability; see outputs/validation_metrics.md §4 for the full selection rationale).</p>
+<p>Fair value: this model&#x27;s own Ridge forecast (predictions.csv). EXAA: ENTSO-E DE-LU day-ahead price document, Sequence 2 (settles ~10:15 CET D-1). DE/FR load, wind, solar: ENTSO-E day-ahead forecasts. TTF: Yahoo Finance TTF=F. CO2 proxy: CARB.L (WisdomTree Carbon ETC), USD — not an official EUR/tonne EUA settlement print. The realised EPEX settlement (Sequence 1) is deliberately NOT shown — it is this model&#x27;s own training target and isn&#x27;t known until that auction clears (~12:00 CET D-1), after the point this page would be used to decide a bid.</p>
+<p>47 engineered features feed the Ridge/LightGBM models (residual load, merit-order nonlinearity, price lags incl. 5 neighbor zones, rolling stats, gas+carbon composite, Forecast Transfer Capacity); see src/features.py and CLAUDE.md §5 for the full list and rationale.</p>
+<p>Generation-unit and transmission-grid outage/REMIT data is excluded by design (sparse, unstructured pre-2021 publication) — no outage panel is shown here. See CLAUDE.md §2.</p>
+<p>Single source of truth for every number on this page: <code>outputs/dashboard_data.json</code>.</p>
+</div>
+
+<script id="dashboard-data" type="application/json">{"meta": {"generated_at_utc": "2026-06-24T01:17:57.781971+00:00", "delivery_date": "2025-12-31", "mode": "STATIC BACKTEST REPLAY", "mode_note": "This page replays one delivery day from the committed 2019-2025 data snapshot. There is no live feed and no refresh schedule \u2014 the snapshot ends 2025-12-31. Regenerate with build_dashboard(delivery_date=...) (src/dashboard.py) to replay a different day in predictions.csv.", "flat_conviction": 0.25, "rich_cheap_threshold_eur": 15.0, "selected_model": "Ridge", "training_window": "expanding"}, "kpi": {"fv_baseload_eur": 76.49, "exaa_baseload_eur": 84.0, "basis_baseload_eur": -7.51, "basis_baseload_conviction": 0.518, "baseload_direction": "SELL", "selected_model": "Ridge", "model_mae_eur": 14.5, "model_rmse_eur": 23.58, "challenger_model": "LightGBM", "challenger_mae_eur": 11.23, "challenger_rmse_eur": 18.93}, "hourly": {"timestamps": ["2025-12-31T00:00:00+01:00", "2025-12-31T01:00:00+01:00", "2025-12-31T02:00:00+01:00", "2025-12-31T03:00:00+01:00", "2025-12-31T04:00:00+01:00", "2025-12-31T05:00:00+01:00", "2025-12-31T06:00:00+01:00", "2025-12-31T07:00:00+01:00", "2025-12-31T08:00:00+01:00", "2025-12-31T09:00:00+01:00", "2025-12-31T10:00:00+01:00", "2025-12-31T11:00:00+01:00", "2025-12-31T12:00:00+01:00", "2025-12-31T13:00:00+01:00", "2025-12-31T14:00:00+01:00", "2025-12-31T15:00:00+01:00", "2025-12-31T16:00:00+01:00", "2025-12-31T17:00:00+01:00", "2025-12-31T18:00:00+01:00", "2025-12-31T19:00:00+01:00", "2025-12-31T20:00:00+01:00", "2025-12-31T21:00:00+01:00", "2025-12-31T22:00:00+01:00", "2025-12-31T23:00:00+01:00"], "hour": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], "fv_eur": [85.3, 79.71, 75.82, 70.83, 67.55, 67.13, 71.4, 79.69, 85.64, 83.36, 76.44, 72.46, 71.47, 72.29, 75.4, 81.59, 86.75, 91.41, 90.46, 85.92, 77.86, 69.32, 63.95, 53.96], "exaa_eur": [90.0, 87.57, 82.3, 81.37, 78.83, 79.95, 79.03, 85.8, 85.85, 85.68, 82.7, 80.8, 78.77, 78.19, 82.4, 86.0, 92.2, 98.8, 98.75, 91.56, 85.06, 78.88, 76.28, 69.26], "basis_eur": [-4.71, -7.87, -6.49, -10.54, -11.28, -12.82, -7.63, -6.11, -0.21, -2.32, -6.26, -8.34, -7.31, -5.9, -7.01, -4.41, -5.45, -7.39, -8.29, -5.64, -7.2, -9.57, -12.34, -15.3], "mae_eur": [11.14, 10.81, 10.88, 10.98, 10.71, 10.09, 11.2, 15.71, 17.13, 14.7, 15.1, 15.14, 15.5, 16.48, 16.45, 16.21, 16.68, 18.43, 19.66, 21.99, 19.08, 14.1, 10.46, 9.36], "conviction": [0.422, 0.728, 0.596, 0.96, 1.053, 1.271, 0.681, 0.389, 0.012, 0.158, 0.414, 0.551, 0.471, 0.358, 0.426, 0.272, 0.327, 0.401, 0.422, 0.257, 0.377, 0.679, 1.179, 1.635], "direction": ["SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "FLAT", "FLAT", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL", "SELL"], "deviation_vs_own_baseload_eur": [8.81, 3.22, -0.67, -5.65, -8.93, -9.36, -5.08, 3.2, 9.16, 6.87, -0.05, -4.03, -5.02, -4.2, -1.09, 5.11, 10.27, 14.92, 13.97, 9.43, 1.38, -7.17, -12.54, -22.53], "shape_flag": ["NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "NEUTRAL", "CHEAP"]}, "tally": {"buy": 0, "sell": 22, "flat": 2}, "blocks": [{"label": "Baseload (00-24)", "n_hours": 24, "fv_avg_eur": 76.49, "exaa_avg_eur": 84.0, "basis_eur": -7.51, "mae_avg_eur": 14.5, "conviction": 0.518, "direction": "SELL"}, {"label": "Peak (08-20 weekday)", "n_hours": 13, "fv_avg_eur": 80.85, "exaa_avg_eur": 86.67, "basis_eur": -5.82, "mae_avg_eur": 17.12, "conviction": 0.34, "direction": "SELL"}, {"label": "Off-peak", "n_hours": 11, "fv_avg_eur": 71.33, "exaa_avg_eur": 80.84, "basis_eur": -9.51, "mae_avg_eur": 11.4, "conviction": 0.834, "direction": "SELL"}], "drivers": {"timestamps": ["2025-12-31T00:00:00+01:00", "2025-12-31T01:00:00+01:00", "2025-12-31T02:00:00+01:00", "2025-12-31T03:00:00+01:00", "2025-12-31T04:00:00+01:00", "2025-12-31T05:00:00+01:00", "2025-12-31T06:00:00+01:00", "2025-12-31T07:00:00+01:00", "2025-12-31T08:00:00+01:00", "2025-12-31T09:00:00+01:00", "2025-12-31T10:00:00+01:00", "2025-12-31T11:00:00+01:00", "2025-12-31T12:00:00+01:00", "2025-12-31T13:00:00+01:00", "2025-12-31T14:00:00+01:00", "2025-12-31T15:00:00+01:00", "2025-12-31T16:00:00+01:00", "2025-12-31T17:00:00+01:00", "2025-12-31T18:00:00+01:00", "2025-12-31T19:00:00+01:00", "2025-12-31T20:00:00+01:00", "2025-12-31T21:00:00+01:00", "2025-12-31T22:00:00+01:00", "2025-12-31T23:00:00+01:00"], "de_load_mw": [48114.0, 46614.0, 45930.0, 46165.0, 47016.0, 47979.0, 50709.0, 54465.0, 57209.0, 59155.0, 60267.0, 61352.0, 61403.0, 60509.0, 59520.0, 59219.0, 59847.0, 61565.0, 62607.0, 61429.0, 58696.0, 55992.0, 53693.0, 50791.0], "de_wind_mw": [19868.0, 20678.0, 21488.0, 23081.0, 25101.0, 26707.0, 28039.0, 28497.0, 29089.0, 29709.0, 29828.0, 29804.0, 30202.0, 30891.0, 31351.0, 31261.0, 31110.0, 30948.0, 30665.0, 30720.0, 31675.0, 32653.0, 33265.0, 34731.0], "de_solar_mw": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 532.0, 3244.0, 6421.0, 8125.0, 8074.0, 6589.0, 4150.0, 1630.0, 172.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "de_residual_load_mw": [28245.0, 25936.0, 24442.0, 23084.0, 21914.0, 21271.0, 22670.0, 25968.0, 27588.0, 26203.0, 24017.0, 23423.0, 23127.0, 23029.0, 24019.0, 26328.0, 28565.0, 30617.0, 31943.0, 30709.0, 27021.0, 23339.0, 20428.0, 16060.0], "fr_load_mw": [67788.0, 66075.0, 65088.0, 62875.0, 61925.0, 62862.0, 65400.0, 68700.0, 71362.0, 73012.0, 74275.0, 74388.0, 74825.0, 73725.0, 71050.0, 68562.0, 67600.0, 70025.0, 72300.0, 71375.0, 68400.0, 65975.0, 66350.0, 68638.0], "fr_wind_mw": [7659.0, 7029.0, 6628.0, 6299.0, 5852.0, 5459.0, 5150.0, 4823.0, 4608.0, 4473.0, 4437.0, 3729.0, 2888.0, 2521.0, 2446.0, 2428.0, 2432.0, 2793.0, 3345.0, 3688.0, 3671.0, 3442.0, 3206.0, 3119.0]}, "level_drivers": {"ttf_front_month_eur_mwh": 27.77, "co2_proxy_usd": 32.22, "gas_co2_pressure_index": 1.07, "ntc_net_transfer_capacity_mw": -3200, "residual_load_fr_forecast_mw": 62427}, "llm": {"drivers_bullish": ["Trailing realised baseload at 78.57 EUR/MWh sits only 2.08 EUR below EXAA, suggesting EXAA is already pricing a meaningful premium to recent settlement history", "Solar delta -1,798 MW vs prior day modestly tightens residual load at the margin relative to wind offset"], "drivers_bearish": ["Wind surge +6,750 MW vs prior day collapses residual load by 8,656 MW to 24,998 MW \u2014 23rd percentile \u2014 crushing marginal cost support well below EXAA print of 84.00 EUR/MWh", "Model baseload fair value 76.49 EUR/MWh implies basis vs. EXAA of -7.51 EUR/MWh, with 22 of 24 hours screening SELL vs. zero hours screening BUY", "Load demand -3,703 MW vs prior day (New Year's Eve holiday suppression) amplifies the bearish residual load dynamic", "NTC net transfer capacity at -3,200 MW (net export constraint) limits upside absorption of surplus generation, reinforcing downward price pressure on DE-LU"], "invalidation_triggers": ["Wind actual materially underperforms forecast \u2014 a shortfall of 5,000+ MW intraday would close the basis gap and invalidate the SELL", "Unexpected demand recovery (cold snap, industrial return) pushing load significantly above the 55,427 MW forecast", "Gas/CO2 complex spike \u2014 TTF front-month well above 27.77 EUR/MWh or CO2 proxy above 32.22 USD reprices the marginal cost stack toward EXAA levels", "NTC constraint reversal or significant cross-border flow change importing high-priced power into DE-LU and compressing the surplus"], "commentary_text": "SELL conviction MODERATE: 22 of 24 hours screen SELL, zero screen BUY, with model baseload fair value at 76.49 EUR/MWh versus EXAA at 84.00 EUR/MWh \u2014 a -7.51 EUR/MWh basis driven primarily by a wind surge of +6,750 MW and a demand-holiday load drop of -3,703 MW collapsing residual load to the 23rd percentile at 24,998 MW. Position sizing is QUARTER SIZE given a backtest MAE of +/-14.50 EUR/MWh that spans the full basis, meaning the signal clears the threshold on tally count but not on magnitude decisiveness. Key uncertainty is wind delivery risk on New Year's Eve \u2014 any material underperformance of the 28,807 MW wind forecast rapidly erodes the short thesis.", "grounding_issues": []}, "footer": {"data_coverage": "ENTSO-E + EXAA + yfinance committed snapshot, 2019-01-01 to 2025-12-31 (DE-LU).", "model_performance_note": "Selected model Ridge: Test-2025 MAE 14.50 EUR/MWh, RMSE 23.58 EUR/MWh, skill vs. D-7 naive +55.8%. No MAPE is reported: DE-LU day-ahead prices cross zero and go negative on high-renewables hours, so MAPE is undefined at zero and explosive near it.", "lightgbm_note": "LightGBM is a nonlinearity-check challenger, not the selected model (Test-2025 MAE 11.23, RMSE 18.93 \u2014 better on raw accuracy, but a regularised linear model is kept for interpretability; see outputs/validation_metrics.md \u00a74 for the full selection rationale).", "sources": "Fair value: this model's own Ridge forecast (predictions.csv). EXAA: ENTSO-E DE-LU day-ahead price document, Sequence 2 (settles ~10:15 CET D-1). DE/FR load, wind, solar: ENTSO-E day-ahead forecasts. TTF: Yahoo Finance TTF=F. CO2 proxy: CARB.L (WisdomTree Carbon ETC), USD \u2014 not an official EUR/tonne EUA settlement print. The realised EPEX settlement (Sequence 1) is deliberately NOT shown \u2014 it is this model's own training target and isn't known until that auction clears (~12:00 CET D-1), after the point this page would be used to decide a bid.", "engineered_features_note": "47 engineered features feed the Ridge/LightGBM models (residual load, merit-order nonlinearity, price lags incl. 5 neighbor zones, rolling stats, gas+carbon composite, Forecast Transfer Capacity); see src/features.py and CLAUDE.md \u00a75 for the full list and rationale.", "exclusions_note": "Generation-unit and transmission-grid outage/REMIT data is excluded by design (sparse, unstructured pre-2021 publication) \u2014 no outage panel is shown here. See CLAUDE.md \u00a72."}}</script>
+<script src="../static/chart.umd.min.js"></script>
+<script>
+const DASHBOARD_DATA = JSON.parse(document.getElementById('dashboard-data').textContent);
+const H = DASHBOARD_DATA.hourly;
+const D = DASHBOARD_DATA.drivers;
+const hourLabels = H.hour.map(h => String(h).padStart(2, '0') + ':00');
+
+new Chart(document.getElementById('priceChart'), {
+  type: 'line',
+  data: {
+    labels: hourLabels,
+    datasets: [
+      { label: 'Fair Value (Ridge)', data: H.fv_eur, borderColor: '#2166ac', backgroundColor: 'transparent', tension: 0.15 },
+      { label: 'EXAA (Sequence 2)', data: H.exaa_eur, borderColor: '#b3261e', backgroundColor: 'transparent', tension: 0.15 },
+    ],
+  },
+  options: {
+    responsive: true,
+    scales: { y: { title: { display: true, text: 'EUR/MWh' } } },
+    plugins: { legend: { position: 'top' } },
+  },
+});
+
+new Chart(document.getElementById('deDriverChart'), {
+  type: 'line',
+  data: {
+    labels: hourLabels,
+    datasets: [
+      { label: 'Load', data: D.de_load_mw, borderColor: '#444444', backgroundColor: 'transparent', tension: 0.15 },
+      { label: 'Wind', data: D.de_wind_mw, borderColor: '#2a9d8f', backgroundColor: 'transparent', tension: 0.15 },
+      { label: 'Solar', data: D.de_solar_mw, borderColor: '#e9c46a', backgroundColor: 'transparent', tension: 0.15 },
+      { label: 'Residual load', data: D.de_residual_load_mw, borderColor: '#264653', backgroundColor: 'transparent', tension: 0.15 },
+    ],
+  },
+  options: {
+    responsive: true,
+    scales: { y: { title: { display: true, text: 'MW' } } },
+    plugins: { legend: { position: 'top' } },
+  },
+});
+
+new Chart(document.getElementById('frDriverChart'), {
+  type: 'line',
+  data: {
+    labels: hourLabels,
+    datasets: [
+      { label: 'FR Load', data: D.fr_load_mw, borderColor: '#6a4c93', backgroundColor: 'transparent', tension: 0.15 },
+      { label: 'FR Wind', data: D.fr_wind_mw, borderColor: '#1982c4', backgroundColor: 'transparent', tension: 0.15 },
+    ],
+  },
+  options: {
+    responsive: true,
+    scales: { y: { title: { display: true, text: 'MW' } } },
+    plugins: { legend: { position: 'top' } },
+  },
+});
+</script>
+
+</body>
+</html>

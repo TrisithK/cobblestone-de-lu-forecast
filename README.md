@@ -3,7 +3,7 @@
 **Candidate:** Trisith Kittisriswai | trisithworld@gmail.com  
 **Market:** Germany-Luxembourg (DE-LU) bidding zone, EPEX day-ahead, hourly, EUR/MWh  
 **Forecast option:** A — next-day hourly day-ahead prices  
-**OOS window:** 2025-12-08 → 2025-12-31 (24 days, 576 hourly predictions)
+**OOS window:** 2025-01-01 → 2025-12-31 (full Test year, 8,759 hourly predictions — widened from the brief's "~2-4 weeks" suggestion; see `report.pdf` §6)
 
 ---
 
@@ -20,15 +20,33 @@ python main.py
 `python main.py` is the **single command** that reproduces everything end-to-end:
 - QA on committed data snapshot → `outputs/qa_report.md`
 - Feature engineering with point-in-time firewall
-- Window-type tuning (expanding vs. rolling, 2024 validation) → `outputs/window_tuning.md`
-- Walk-forward backtest (2025 test year) → `outputs/validation_metrics.md`
+- Window-type tuning (expanding vs. rolling, 2024 validation — **[v2 round 2]** flipped back to expanding after adding NTC features, see `outputs/window_tuning.md`) → `outputs/window_tuning.md`
+- Walk-forward backtest (2025 test year, expanding window) → `outputs/validation_metrics.md`
 - OOS predictions → `predictions.csv`
-- Prompt-curve translation (forward-basis view) → `outputs/prompt_curve_view.md`, `figures/prompt_curve.png`
+- Prompt-curve translation (fair-value aggregates, self-referential basis vs. trailing realised price — no external forward reference) → `outputs/prompt_curve_view.md`, `figures/prompt_curve.png`
 - Hourly/block tradable DA view (model's own shape, no forward dependency) → `outputs/hourly_block_view.md`, `figures/hourly_block_view.png`
 - LLM trader commentary → loaded from cache (`ai_logs/commentary_cache.json`)
-- Static morning desk note (assembled from the above) → `outputs/morning_note.md`
+- Static morning desk note (assembled from the above) → `outputs/morning_note.html` (single self-contained file, figures embedded) and `outputs/morning_note.md`
+- **[v2 round 5]** Fair-value-vs-EXAA dashboard → `outputs/dashboard_data.json` (single source of truth) then `outputs/fair_value_dashboard.html` (self-contained, Chart.js vendored locally — no CDN, no network needed to view it)
 
-**No API keys required to reproduce.** The LLM step runs from committed cache. Full run takes **~7 minutes** on a laptop, well within the 10-minute budget.
+**No API keys required to reproduce.** The LLM step runs from committed cache. **[v2 round 3] now measured at ~24 minutes** on the build machine (up from ~9 min in round 2), exceeding the brief's <10-minute budget — reported honestly rather than rounded down. The walk-forward backtest refits both models daily over 47 features instead of 33 (+42% features, but the two heavy backtest loops — Validation model-selection + the full Test year — together took ~24 min of measured `time.time()` elapsed in the last run, a bigger jump than feature count alone explains). `outputs/window_tuning.md` is regenerated from scratch each run (no caching), so this figure already includes it. If reproduction time matters more than the neighbor-zone features, the obvious lever is dropping the `ModelSelection` backtest's daily LightGBM refit to a coarser cadence — not done here since validation fidelity was prioritised over the runtime budget for this round.
+
+---
+
+## Replaying a Different Delivery Day on the Dashboard
+
+`outputs/fair_value_dashboard.html` defaults to the last day in `predictions.csv`
+(2025-12-31). `build_dashboard()` (`src/dashboard.py`) takes an optional
+`delivery_date` parameter — any other date already present in `predictions.csv`
+works without touching `main.py`:
+
+```bash
+cd src && python3 -c "from dashboard import build_dashboard; build_dashboard('2025-06-15')"
+```
+
+This is a **static backtest replay** of that one day from the committed
+2019-2025 snapshot — there is no live feed and no refresh schedule, which the
+page's header states explicitly.
 
 ---
 
@@ -45,9 +63,24 @@ cp .env.example .env
 
 Keys are read via `python-dotenv`. **Never committed to version control.**
 
-To re-fetch data from ENTSO-E:
+To re-fetch the DE-LU snapshot (manually-exported GUI CSVs → parquet, no key needed):
 ```bash
 python data/fetch_data.py
+```
+
+To re-fetch the v2 cross-border (FR) + carbon snapshot (live ENTSO-E API — **needs `ENTSOE_API_KEY`**):
+```bash
+python data/fetch_fr_co2.py
+```
+
+To re-fetch the v2 round-2 Forecast Transfer Capacity (NTC) snapshot (live ENTSO-E API — **needs `ENTSOE_API_KEY`**):
+```bash
+python data/fetch_ntc.py
+```
+
+To re-fetch the v2 round-3 neighbor bidding zone (FR/NL/BE/PL/CZ) price + load/wind/solar snapshot (live ENTSO-E API — **needs `ENTSOE_API_KEY`**):
+```bash
+python data/fetch_neighbors.py
 ```
 
 ---
@@ -59,26 +92,48 @@ trisith_kittisriswai/
 ├── README.md              # this file
 ├── requirements.txt       # pinned dependencies
 ├── main.py                # single entry point
-├── report.md              # 1-3 page write-up
+├── report.pdf              # 1-3 page write-up (figures embedded)
 ├── predictions.csv        # OOS predictions: datetime (ISO 8601), y_pred (EUR/MWh)
 ├── .env.example           # template — copy to .env and fill in keys
 ├── src/
-│   ├── config.py          # shared constants (OOS window, EEX reference, seeds)
+│   ├── config.py          # shared constants (OOS window, Q4 figure window, seeds)
 │   ├── qa.py              # QA checks + report
 │   ├── features.py        # feature engineering + assert_no_lookahead()
 │   ├── models.py          # Ridge / LightGBM / depth-3 tree
 │   ├── validation.py      # walk-forward backtest + metrics
 │   ├── prompt_curve.py    # prompt-curve translation (forward-basis + hourly/block views)
 │   ├── llm_commentary.py  # LLM commentary (pydantic schema, grounding check, cache)
-│   └── morning_note.py    # static morning desk note assembly
+│   ├── morning_note.py    # static morning desk note assembly
+│   └── dashboard.py       # [v2 round 5] fair-value-vs-EXAA dashboard: data layer
+│                           # (build_dashboard_data -> dashboard_data.json) + pure
+│                           # HTML renderer (render_dashboard_html); also exposes
+│                           # compute_hourly_decisions/compute_block_decision/
+│                           # compute_tally, imported by llm_commentary.py so the
+│                           # LLM's fact object and the dashboard never disagree
 ├── data/
-│   ├── fetch_data.py      # ENTSO-E + yfinance fetch script
+│   ├── fetch_data.py      # DE-LU fetch script (manually-exported GUI CSVs → parquet, no key)
+│   ├── fetch_fr_co2.py    # [v2] FR (ENTSO-E API, entsoe-py) + CO2 proxy (yfinance) fetch script
+│   ├── fetch_ntc.py       # [v2 round 2] Forecast Transfer Capacity fetch script (ENTSO-E API)
+│   ├── fetch_neighbors.py # [v2 round 3] neighbor zone (FR/NL/BE/PL/CZ) fetch script (ENTSO-E API)
 │   ├── da_prices.parquet          # day-ahead prices snapshot (2019-2025)
+│   ├── exaa_prices.parquet        # [v2 round 4] EXAA day-ahead auction (Sequence 2), same CSVs as da_prices
 │   ├── load_forecast.parquet      # day-ahead load forecast snapshot
 │   ├── wind_solar_forecast.parquet # day-ahead wind + solar forecast snapshot
-│   └── ttf_daily.parquet          # TTF front-month daily close snapshot
+│   ├── ttf_daily.parquet          # TTF front-month daily close snapshot
+│   ├── fr_load_forecast.parquet   # [v2] FR day-ahead load forecast snapshot
+│   ├── fr_wind_forecast.parquet   # [v2] FR day-ahead wind forecast snapshot (onshore+offshore)
+│   ├── fr_solar_forecast.parquet  # [v2 round 3] FR day-ahead solar forecast snapshot
+│   ├── co2_proxy_daily.parquet    # [v2] EU ETS CO2 proxy (CARB.L) daily close snapshot
+│   ├── ntc_forecast.parquet       # [v2 round 2] Forecast Transfer Capacity snapshot, 6 borders x 2 directions
+│   ├── neighbor_prices.parquet    # [v2 round 3] day-ahead price, FR/NL/BE/PL/CZ
+│   ├── neighbor_load_forecast.parquet      # [v2 round 3] day-ahead load forecast, NL/BE/PL/CZ
+│   └── neighbor_wind_solar_forecast.parquet # [v2 round 3] day-ahead wind+solar forecast, NL/BE/PL/CZ
 ├── figures/               # EDA, validation, merit-order tree, prompt-curve, hourly-block plots
-├── outputs/               # QA report, validation metrics, window tuning, prompt-curve + hourly-block views, morning note
+├── static/
+│   └── chart.umd.min.js   # [v2 round 5] vendored Chart.js (no CDN — committed so the
+│                           # dashboard renders fully offline)
+├── outputs/               # QA report, validation metrics, window tuning, prompt-curve + hourly-block views,
+│                           # morning note (.html + .md), [v2 round 5] dashboard_data.json + fair_value_dashboard.html
 └── ai_logs/               # LLM prompts, raw responses, committed cache
 ```
 
@@ -87,6 +142,15 @@ trisith_kittisriswai/
 ## Key Design Choices
 
 - **Selected model: Ridge with merit-order features** — residual load (load − wind − solar) with hinge and quadratic nonlinearity terms, price lags D-1/D-7, TTF daily anchor, cyclic calendar encodings, and an optional `ttf × residual_load` interaction (Ridge-only) that lets gas re-slope the merit-order relationship rather than only shift its level. LightGBM is included as a nonlinearity-check challenger but not selected; see `outputs/validation_metrics.md` §4 for the principled selection rationale.
+- **[v2] Cross-border + carbon additions** — FR day-ahead load/wind forecasts (live ENTSO-E API fetch) feed a `residual_load_fr_mw` cross-border pressure feature; TTF gas + a CO2 proxy (CARB.L, a tradable EUA-tracking ETC, not an official settlement print) combine into a standardised `gas_co2_pressure_index` rather than a literal EUR/MWh spark-spread formula — see `CLAUDE.md` §5 for why a composite index, not a fabricated conversion, was the honest choice given the CO2 input's actual units.
+- **[v2 round 2] Forecast Transfer Capacity** — `ntc_import_capacity_mw` / `ntc_export_capacity_mw` / `ntc_net_transfer_capacity_mw`, summed across whichever of DE-LU's six NTC-publishing borders (CH, DK_1, NL, AT, CZ, DK_2) are live at each hour. FR/BE/PL/NO_2/SE_4 never publish a bilateral Day-Ahead NTC in 2019-2025 — confirmed by a coverage scan, not assumed — so the "Total" aggregates are honestly a sum over a shrinking set of borders, not all ~10 physical interconnectors. See `CLAUDE.md` §2/§5 and `data/fetch_ntc.py`.
+- **[v2 round 2] Adding NTC flipped the window-type winner back to expanding** (15.04 vs. 15.25 Ridge MAE, 2024 Validation) — the *second* flip in this build (v1: expanding; round 1: rolling; round 2: expanding again). The Test-period Ridge MAE moved from 13.71 (round 1) to 14.89 (round 2) — worse — which is reported as-is in `report.pdf` §5/§6 rather than used to revert the NTC features, since the decision is made on Validation only and re-opening it because Test looks worse would itself be fitting to the Test set.
+- **[v2 round 3] Neighbor bidding zone (FR/NL/BE/PL/CZ) price lags + residual load** — 10 price-lag columns (D-1/D-7) and 4 residual-load columns, additive only. Confirmed expanding again as the window winner (14.32 vs. 15.05 Ridge MAE) with no further flip, and Test-period MAE genuinely improved this round (Ridge 14.89 → 14.50, LightGBM 11.91 → 11.23) — the first round-over-round Test improvement not confounded by a window-type change. Headline feature-importance finding: `price_lag_24h_cz` and `price_lag_24h_be` rank **above** DE's own `price_lag_24h` in LightGBM's gain ranking — DE-LU's tight CWE price coupling with these neighbors means their lags carry as much day-to-day persistence signal as DE's own. See `CLAUDE.md` §2/§5 and `data/fetch_neighbors.py`.
+- **[v2 round 4] EXAA (Sequence 2) pre-auction reference, prompt-curve only — no retraining.** ENTSO-E's DE-LU price document already carried EXAA's own day-ahead auction (settles ~10:15 CET D-1, earlier than EPEX's ~12:00 CET D-1) in a column the build simply hadn't parsed before. `basis_vs_exaa_eur` (forecast − EXAA price, same delivery day) is now the primary driver of the prompt-curve's direction/conviction/size in `src/llm_commentary.py`, replacing the self-referential trailing-baseload basis as primary (kept as secondary context). Full-history correlation with the target series: 0.986. Since EXAA isn't a model feature, the walk-forward backtest didn't need to rerun. See `CLAUDE.md` §7 and `data/fetch_data.py`.
+- **[v2 round 5] Fair-value-vs-EXAA dashboard, per-hour decision layer — pure arithmetic, never an LLM call.** For each delivery hour: `basis_h = fair_value_h - EXAA_h`, `conviction_h = |basis_h| / MAE_for_that_hour` (Ridge's own by-hour backtest MAE), `direction_h = FLAT if conviction_h < config.FLAT_CONVICTION (0.25) else SELL/BUY by the sign of basis_h`. The same formula runs at block level (baseload/peak/off-peak). There is deliberately no single whole-day call — `src/llm_commentary.py` imports these same functions so its fact object and the dashboard agree exactly. See `outputs/fair_value_dashboard.html` and `src/dashboard.py`.
+- **[v2 round 5] LLM schema change: `direction`/`conviction` removed from the LLM's output.** The per-hour/block tally above is now the only source of direction. `TraderCommentary` (the LLM's pydantic output schema) keeps only `drivers_bullish[]` / `drivers_bearish[]` / `invalidation_triggers[]` / `commentary_text` — the model narrates the code-computed tally (passed into the fact object as `tally_buy`/`tally_sell`/`tally_flat`/`baseload_direction`), it does not originate or contradict it. `ai_logs/commentary_cache.json` was regenerated once against this new schema.
+- **[v2 round 5] Known discrepancy, reported not hidden:** an earlier spec for this feature estimated the per-hour tally for 2025-12-31 at 21 SELL / 3 FLAT / 0 BUY. The actual reproducible arithmetic (verified three ways — by-hour MAE parsed from `validation_metrics.md`, recomputed directly from `backtest_results.parquet` at full float precision, and a constant-MAE variant) consistently gives **22 SELL / 2 FLAT / 0 BUY**. The discrepancy is one hour: hour 19 has conviction 0.257, just above the 0.25 `FLAT_CONVICTION` threshold (the next-closest is hour 15 at 0.272). No formula change was made to force a match — this is the real computed result.
+- **[v2 round 5 correction] Realised EPEX settlement removed from the dashboard — it's a look-ahead violation, caught after first ship.** The first version plotted "Realised SDAC" (`data/da_prices.parquet`, the EPEX Sequence 1 settlement) alongside Fair Value and EXAA. That series is this model's own training **target** — by construction it isn't known until the auction it concerns clears (~12:00 CET D-1 gate closure), strictly after EXAA's own auction (~10:15 CET D-1) and after the point this page would be used to decide a bid. Showing it is the same point-in-time violation CLAUDE.md §3 Rule 1 forbids for model features, just applied to a dashboard panel instead of a feature column. Removed entirely from `dashboard_data.json` and the HTML (chart series, period-average column, block-table column, hourly-detail column) — not just hidden. See `src/dashboard.py`'s module docstring and `CLAUDE.md` §14 item 13.
 - **Point-in-time firewall enforced** — all features for delivery day D use only data knowable at ~12:00 D-1. Assertion in `src/features.py` raises if any forbidden timestamp appears.
 - **Negative prices never clipped** — 3.3% of DE-LU hours go negative; treating them as zero is a domain error.
 - **DST handled** — tz-aware `Europe/Berlin` index; 23-hour spring days and 25-hour fall days verified in QA.
@@ -101,12 +165,16 @@ trisith_kittisriswai/
 | Public data only (ENTSO-E, Yahoo Finance) | ✓ |
 | `python main.py` — single command, end-to-end | ✓ |
 | Deterministic (seeds: numpy, random, LightGBM) | ✓ |
-| <10 minutes on a laptop (data pre-committed; ~7 min measured) | ✓ |
-| Committed data snapshot (`data/*.parquet`) | ✓ |
-| Fetch script in `data/` (`data/fetch_data.py`) | ✓ |
+| <10 minutes on a laptop (data pre-committed) | ⚠ **[v2 round 3] no — measured ~24 min**, see note above |
+| Committed data snapshot (`data/*.parquet`, incl. [v2] FR + CO2 + NTC + [v2 round 3] neighbor zones + [v2 round 4] EXAA) | ✓ |
+| Fetch scripts in `data/` (`fetch_data.py` — incl. [v2 round 4] EXAA, [v2] `fetch_fr_co2.py`, [v2 round 2] `fetch_ntc.py`, [v2 round 3] `fetch_neighbors.py`) | ✓ |
+| [v2 round 5] Dashboard renders fully offline (`static/chart.umd.min.js` vendored, no CDN) | ✓ |
+| [v2 round 5] Dashboard grounding check (every number in the HTML traces to `dashboard_data.json` or the LLM cache; fails loudly otherwise) | ✓ |
 | No secrets committed (`.env` in `.gitignore`) | ✓ |
 | LLM step runs from cache (`ai_logs/commentary_cache.json`) | ✓ |
 | Dependencies pinned (`requirements.txt`) | ✓ |
 | No large/unused data | ⚠ partial — see note below |
+
+> **[v2] note:** `main.py` itself still runs key-free from the committed parquet snapshot (FR + CO2 + NTC + neighbor zones all included). `ENTSOE_API_KEY` is only needed to re-run `data/fetch_fr_co2.py` / `data/fetch_ntc.py` / `data/fetch_neighbors.py` and refresh those snapshots from the live ENTSO-E API.
 
 > **Known deviation:** `data/` also retains the raw ENTSO-E manual-export CSVs (`GUI_*.csv`, ~120MB) used to build the committed parquet snapshots, rather than only the few-MB snapshot the brief describes. Of these, exactly one (`GUI_TOTAL_LOAD_DAYAHEAD_201901010000-202001010000.csv`) is still read at runtime, by `src/qa.py`'s forecast-vs-actual spot-check (it degrades gracefully to "skipped" if missing). The rest are unused leftovers from the fetch step and could be pruned; left in place for this submission so the spot-check input is traceable to its raw source.

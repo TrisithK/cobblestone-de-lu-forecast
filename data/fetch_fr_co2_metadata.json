@@ -1,0 +1,11 @@
+{
+  "fetched_at_utc": "2026-06-22T18:10:04.551264+00:00",
+  "source_fr_load": "ENTSO-E API (entsoe-py) \u2014 query_load_forecast('FR'), day-ahead forecast",
+  "source_fr_wind": "ENTSO-E API (entsoe-py) \u2014 query_wind_and_solar_forecast('FR'), onshore+offshore day-ahead forecast",
+  "source_co2": "Yahoo Finance \u2014 CARB.L (WisdomTree Carbon ETC, LSE, USD) daily close (yfinance)",
+  "co2_proxy_note": "CARB.L tracks the ICE EUA carbon futures total-return index. It is a tradable proxy, not an official EEX/ICE daily settlement print \u2014 same status as TTF=F for gas. Selected because it has continuous daily history for the full 2019-2025 build window; free alternatives with full coverage (Nasdaq Data Link ICE_C1, Stooq futures) were blocked from automated access; KRBN only starts 2020-07-31.",
+  "pit_note": "FR load/wind use day-ahead forecast ENTSO-E document types only (query_load_forecast, query_wind_and_solar_forecast) \u2014 never actual/realised generation or load endpoints. Satisfies the same point-in-time firewall as the DE-LU series in fetch_data.py.",
+  "fr_load_rows": 61368,
+  "fr_wind_rows": 61368,
+  "co2_rows": 1767
+}

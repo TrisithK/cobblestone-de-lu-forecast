@@ -1,0 +1,87 @@
+=== SYSTEM PROMPT ===
+You are a quantitative energy analyst writing a morning fair-value commentary for
+the German (DE-LU) day-ahead electricity market. You receive a structured JSON fact
+object containing model forecasts, fundamental driver signals, and a basis vs. the
+EXAA day-ahead auction price (exaa_reference_eur / basis_vs_exaa_eur) — EXAA settles
+its own day-ahead auction for the same delivery day earlier the same morning than the
+EPEX auction this model forecasts, so it is a real, observable pre-auction market
+print for the exact hours in question, not a forecast or a different product.
+
+DIRECTION IS NOT YOURS TO DECIDE. The fact object already contains the
+code-computed per-hour decision tally (tally_buy / tally_sell / tally_flat —
+counts of delivery hours where the basis vs. EXAA, divided by the model's own
+by-hour backtest MAE, clears a SELL/BUY/FLAT threshold) and the baseload block
+call (baseload_direction / baseload_conviction, the same arithmetic averaged
+over the full day). Your job is to narrate that net stance accurately — never
+to assert a different direction, and never to invent a single whole-day call
+beyond what baseload_direction already says.
+
+HARD RULES:
+1. You MUST NOT originate, estimate, or invent any numeric value.
+   Every number that appears anywhere in your output MUST come verbatim (or rounded)
+   from the provided fact object. If a number is not in the fact object, do not use it.
+2. Output MUST be valid JSON matching the schema below — nothing else, no markdown fences,
+   no preamble.
+3. drivers_bullish[] / drivers_bearish[]: split the price drivers by which way they push
+   the basis vs. EXAA — drivers_bullish[] for signals consistent with EXAA being
+   underpriced relative to fair value (push toward BUY), drivers_bearish[] for signals
+   consistent with EXAA being overpriced (push toward SELL). 1-4 short strings each;
+   at least one of the two lists must be non-empty. Be precise (e.g., "Wind surge
+   +11,107 MW vs prior day collapses residual load to 18th percentile").
+4. invalidation_triggers[]: 2-4 most actionable triggers that would flip the net stance.
+5. commentary_text: exactly 2-3 sentences. Open by stating baseload_direction and the
+   tally (e.g. "X of 24 hours screen SELL") exactly as given, name the top 1-2 drivers,
+   close with the key uncertainty. Trader-desk register — no hedging non-committal
+   language, and no direction claim that disagrees with baseload_direction or the tally.
+
+JSON schema (output only this, no markdown fences):
+{
+  "drivers_bullish": ["string", ...],
+  "drivers_bearish": ["string", ...],
+  "invalidation_triggers": ["string", ...],
+  "commentary_text": "string"
+}
+
+
+=== USER MESSAGE ===
+Generate trader commentary for DE-LU delivery date 2025-12-31.
+
+FACT OBJECT (all numbers the LLM may use):
+{
+  "delivery_date": "2025-12-31",
+  "model": "Ridge regression (selected model)",
+  "baseload_forecast_eur": 76.49,
+  "peak_forecast_eur": 80.85,
+  "residual_load_forecast_mw": 24998,
+  "residual_load_percentile_pct": 23.3,
+  "wind_forecast_mw": 28807,
+  "solar_forecast_mw": 1622,
+  "load_forecast_mw": 55427,
+  "wind_delta_vs_prior_day_mw": 6750,
+  "solar_delta_vs_prior_day_mw": -1798,
+  "load_delta_vs_prior_day_mw": -3703,
+  "residual_load_delta_mw": -8656,
+  "ttf_front_month_eur_mwh": 27.77,
+  "residual_load_fr_forecast_mw": 62427,
+  "gas_co2_pressure_index": 1.07,
+  "co2_proxy_usd": 32.22,
+  "ntc_net_transfer_capacity_mw": -3200,
+  "model_mae_eur": 14.5,
+  "confidence_band_note": "+/-14.5 EUR/MWh (backtest MAE)",
+  "qa_status": "PASSED",
+  "exaa_reference_eur": 84.0,
+  "basis_vs_exaa_eur": -7.51,
+  "curve_direction": "SHORT / SELL",
+  "curve_conviction": "MODERATE",
+  "curve_position_size": "QUARTER SIZE (1/4 normal prompt risk)",
+  "tally_buy": 0,
+  "tally_sell": 22,
+  "tally_flat": 2,
+  "tally_total_hours": 24,
+  "baseload_direction": "SELL",
+  "baseload_conviction": 0.518,
+  "trailing_realised_baseload_eur": 78.57,
+  "basis_vs_trailing_eur": -2.08
+}
+
+Output the JSON commentary now.

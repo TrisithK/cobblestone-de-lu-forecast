@@ -4,13 +4,6 @@ config.py — Shared constants for the DE-LU pipeline.
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# OOS window (CLAUDE.md §6: most recent ~2-4 weeks of fully-available data)
-# Data ends 2025-12-31; use last 24 days (3.4 weeks) as OOS.
-# ---------------------------------------------------------------------------
-OOS_START = pd.Timestamp("2025-12-08 00:00:00", tz="Europe/Berlin")
-OOS_END   = pd.Timestamp("2025-12-31 23:00:00", tz="Europe/Berlin")
-
-# ---------------------------------------------------------------------------
 # Three-way temporal split (REVISION_PLAN.md A1).
 # These dates define *roles*, not frozen training sets: walk-forward training
 # always uses all valid rows strictly before the day being predicted, so 2024
@@ -23,51 +16,38 @@ VALIDATION_END   = pd.Timestamp("2024-12-31 23:00:00", tz="Europe/Berlin")
 TEST_START       = pd.Timestamp("2025-01-01 00:00:00", tz="Europe/Berlin")
 TEST_END         = pd.Timestamp("2025-12-31 23:00:00", tz="Europe/Berlin")
 
+# ---------------------------------------------------------------------------
+# OOS window — the entire Test period (2025-01-01 -> 2025-12-31, 8,760 hours).
+# CLAUDE.md §6 suggests "~2-4 weeks" as the predictions.csv deliverable; this
+# build widens OOS to the full Test year on request, so predictions.csv and
+# the prompt-curve / hourly-block figures are backed by the same full-year
+# walk-forward backtest reported in validation_metrics.md, not a 24-day slice
+# of it. Documented as a deliberate deviation from the brief in report.pdf §6.
+# ---------------------------------------------------------------------------
+OOS_START = TEST_START
+OOS_END   = TEST_END
+
 # Calibration window type (REVISION_PLAN.md A2) — chosen empirically by
 # comparing expanding vs. rolling training windows on the VALIDATION period
 # (2024 walk-forward MAE, Ridge). See outputs/window_tuning.md for the numbers.
 # "rolling" trains on only the trailing WINDOW_DAYS; "expanding" uses all
 # history before the prediction day. Flip this to re-run the comparison.
-WINDOW_TYPE = "expanding"   # "expanding" | "rolling"
+WINDOW_TYPE = "expanding"  # "expanding" | "rolling" — [v2 round 2] flips back to
+                            # "expanding" after adding the NTC features (15.04 < rolling's
+                            # 15.25, Validation 2024, Ridge). v2 round 1 (FR+CO2 only) had
+                            # flipped it to "rolling" (15.14 < 15.40); each feature-set change
+                            # re-triggers this comparison — see outputs/window_tuning.md for
+                            # the numbers actually used to pick the current setting.
 WINDOW_DAYS = 728           # trailing window length in days, used only if WINDOW_TYPE == "rolling"
 
 # ---------------------------------------------------------------------------
-# EEX DE prompt-curve reference (CLAUDE.md §7)
-# Front-month: ICE ENDEX German Power Financial Base Futures, January 2026
-#   delivery (GABF2026). Contract settled 2026-01-30; settlement price range
-#   confirmed as 102.45–104.09 EUR/MWh (mid: 103.99) from TradingView /
-#   ICE ENDEX public data. Used here as the nearest publicly verifiable
-#   reference for the January 2026 front-month around 2025-12-05.
-#   Note: the exact EEX daily settlement on 2025-12-05 is not freely available
-#   (requires EEX DataSource subscription); 103.99 is the final settlement
-#   and represents the realised January 2026 EPEX average — the best public proxy.
-# Front-week: EEX Power Week Future (Dec 8-14 2025) daily settlement is not
-#   publicly available. Retained as illustrative; early-Dec spot context
-#   (~110 EUR/MWh on EPEX in the week before Dec 8) suggests ~105–110 EUR/MWh
-#   was plausible for the week future.
-# These are NEVER fed into the model — used only for the curve translation step.
+# Prompt-curve figure readability window (CLAUDE.md §7 / report.pdf §7).
+# figures/prompt_curve.png and figures/hourly_block_view.png plot a Q4 2025
+# slice of the full-year OOS window for readability — the underlying
+# aggregate stats in outputs/*.md and report.pdf remain full-OOS-year.
 # ---------------------------------------------------------------------------
-EEX_FRONTMONTH_DATE          = "2026-01-30"          # contract expiry / settlement date
-EEX_FRONTMONTH_BASELOAD_EUR  = 103.99                # EUR/MWh  ICE ENDEX GABF2026 final settlement
-EEX_FRONTMONTH_IS_ILLUSTRATIVE = False                # real, dated, sourced settlement print
-
-EEX_FRONTWEEK_DATE           = "2025-12-05"          # reference date (illustrative)
-EEX_FRONTWEEK_BASELOAD_EUR   = 107.50                # EUR/MWh  estimated from early-Dec spot context
-# Checked (2026-06-21): EEX Phelix DE Power Week Future settlements are not
-# published anywhere free/public (EEX market-data pages only show a rolling
-# 45-day window; full history requires an EEX Group DataSource subscription).
-# No real print could be sourced — this stays a fundamentals proxy.
-EEX_FRONTWEEK_IS_ILLUSTRATIVE = True                  # explicit flag — see REVISION_PLAN.md C3
-
-EEX_SOURCE = (
-    "Front-month: ICE ENDEX German Power Financial Base Futures (GABF2026), January 2026 "
-    "delivery, final settlement 2026-01-30 (range 102.45–104.09, mid 103.99 EUR/MWh) — real, "
-    "publicly sourced (TradingView / ICE ENDEX). "
-    "Front-week: NOT a real settlement — estimated from early-December EPEX spot context "
-    "(~110 EUR/MWh); the actual EEX week-future print requires an EEX DataSource subscription "
-    "and could not be sourced publicly. Treated as illustrative throughout "
-    "(see EEX_FRONTWEEK_IS_ILLUSTRATIVE)."
-)
+Q4_START = pd.Timestamp("2025-10-01 00:00:00", tz="Europe/Berlin")
+Q4_END   = pd.Timestamp("2025-12-31 23:00:00", tz="Europe/Berlin")
 
 # ---------------------------------------------------------------------------
 # Residual load hinge threshold (80th percentile, computed on pre-OOS history)
@@ -79,3 +59,14 @@ RESID_HIGH_MW = 45_063.0   # MW  (p80 of full pre-OOS residual load distribution
 # Random seeds — all models use these for reproducibility (CLAUDE.md §11)
 # ---------------------------------------------------------------------------
 RANDOM_SEED = 42
+
+# ---------------------------------------------------------------------------
+# [v2 round 5] Dashboard per-hour / per-block decision threshold.
+# direction_h = FLAT if conviction_h < FLAT_CONVICTION, else SELL/BUY by the
+# sign of basis_h, where conviction_h = |basis_h| / MAE_for_hour_h. This is
+# arithmetic, computed in src/dashboard.py — not an LLM judgement. Tunable:
+# raising it makes the dashboard call FLAT more often (more conservative,
+# requires a bigger edge relative to the model's own demonstrated error
+# before committing to a side); lowering it calls a side more readily.
+# ---------------------------------------------------------------------------
+FLAT_CONVICTION = 0.25
