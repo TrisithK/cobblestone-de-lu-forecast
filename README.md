@@ -67,6 +67,13 @@ To re-fetch the DE-LU snapshot (manually-exported GUI CSVs → parquet, no key n
 ```bash
 python data/fetch_data.py
 ```
+> The raw `GUI_*.csv` exports are **not committed** (they were used once to build the
+> committed `data/*.parquet` snapshot, then removed to keep the repo small). `main.py`
+> reads the parquet snapshot, so reproduction needs no CSVs. Re-export them from
+> transparency.entsoe.eu (Area = BZN|DE-LU) into `data/` before running `fetch_data.py`.
+> `src/qa.py`'s point-in-time firewall spot-check (which reads one raw load CSV to confirm
+> the loaded series matches the forecast column, not actuals) auto-skips and reports
+> "skipped" when the CSV is absent — it does not fail QA or the pipeline.
 
 To re-fetch the v2 cross-border (FR) + carbon snapshot (live ENTSO-E API — **needs `ENTSOE_API_KEY`**):
 ```bash
@@ -177,4 +184,4 @@ trisith_kittisriswai/
 
 > **[v2] note:** `main.py` itself still runs key-free from the committed parquet snapshot (FR + CO2 + NTC + neighbor zones all included). `ENTSOE_API_KEY` is only needed to re-run `data/fetch_fr_co2.py` / `data/fetch_ntc.py` / `data/fetch_neighbors.py` and refresh those snapshots from the live ENTSO-E API.
 
-> **Known deviation:** `data/` also retains the raw ENTSO-E manual-export CSVs (`GUI_*.csv`, ~120MB) used to build the committed parquet snapshots, rather than only the few-MB snapshot the brief describes. Of these, exactly one (`GUI_TOTAL_LOAD_DAYAHEAD_201901010000-202001010000.csv`) is still read at runtime, by `src/qa.py`'s forecast-vs-actual spot-check (it degrades gracefully to "skipped" if missing). The rest are unused leftovers from the fetch step and could be pruned; left in place for this submission so the spot-check input is traceable to its raw source.
+> **Data snapshot only — raw CSVs not committed:** `data/` holds only the few-MB `*.parquet` snapshot the brief asks for. The ~120MB of raw ENTSO-E manual-export CSVs (`GUI_*.csv`) used to build it are **not committed**, keeping the repo small (~19MB total). `main.py` reads the parquet snapshot, so reproduction needs no CSVs. `data/fetch_data.py` documents how to re-export them and rebuild the snapshot. `src/qa.py`'s point-in-time firewall spot-check reads one raw load CSV when present to confirm the loaded series is the forecast column (not actuals); with the CSVs absent it auto-reports "skipped" and does not fail QA or the pipeline.

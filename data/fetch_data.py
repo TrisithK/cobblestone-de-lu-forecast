@@ -1,10 +1,19 @@
 """
 fetch_data.py — Build the DE-LU data snapshot from manually exported ENTSO-E CSVs.
 
-Run once (no API key required):
+Run once (no API key required), AFTER re-exporting the raw CSVs below:
     python data/fetch_data.py
 
-Expected CSV files in data/ (7 annual files each, 2019-2026):
+NOTE: the raw GUI CSVs are NOT committed to this repo. They were exported once
+from the ENTSO-E Transparency Platform GUI and used to build the committed
+`data/*.parquet` snapshot, then removed to keep the repo small (the brief asks
+for a small data snapshot, not the multi-100MB raw source). `main.py` reads the
+parquet snapshot, not these CSVs, so reproduction does NOT require them. To
+regenerate the snapshot from scratch, re-export the files below (Area =
+BZN|DE-LU, 15-min resolution) from transparency.entsoe.eu into data/, then run
+this script.
+
+Expected CSV files in data/ (7 annual files each, 2019-2026 — re-export first):
     GUI_ENERGY_PRICES_*.csv                        — DA prices (Sequence 1, EUR/MWh)
     GUI_TOTAL_LOAD_DAYAHEAD_*.csv                  — DA load forecast (MW)
     GUI_WIND_SOLAR_GENERATION_FORECAST_OFFSHORE_*  — DA wind offshore forecast (MW)

@@ -1,6 +1,6 @@
 # QA Report — DE-LU Day-Ahead Price Forecasting Data
 
-Generated: 2026-06-24 01:06 UTC
+Generated: 2026-06-24 18:45 UTC
 
 ---
 
@@ -145,11 +145,7 @@ Negative price hours in full history: **2,051** (3.3% of non-NaN rows) — prese
 
 Confirms that loaded `load_forecast_mw` matches the  `Day-ahead Total Load Forecast (MW)` column in the raw CSV,  **not** the `Actual Total Load (MW)` column.
 
-- Max |loaded − forecast| across first 100h: **0.0000 MW**
-- Max |loaded − actual|  across first 100h: **9033.8 MW**
-- Loaded values match day-ahead forecast column (not actuals). PIT firewall OK. ✓
-
-**PASS**
+- No raw load CSV found — skipped
 
 ## 7. Post-Imputation Missingness Summary
 
