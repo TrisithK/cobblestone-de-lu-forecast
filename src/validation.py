@@ -212,11 +212,23 @@ def run_window_tuning(X: pd.DataFrame, y: pd.Series) -> dict:
 
     winner = min(scores, key=scores.get)
 
-    selection_res = run_backtest(
-        X, y, VALIDATION_START, VALIDATION_END,
-        window_type=winner, window_days=WINDOW_DAYS,
-        fit_lgbm=True, label="ModelSelection[2024]",
-    )
+    # This call refits LightGBM daily over the full 2024 Validation period —
+    # by far the most expensive step in the pipeline. It changes nothing
+    # about the model-selection decision, so it's cached exactly like the
+    # Test-period backtest below (run_validation()'s backtest_results.parquet)
+    # rather than recomputed on every `main.py` invocation.
+    selection_cache_path = os.path.join(OUTPUTS_DIR, "validation_selection_results.parquet")
+    if os.path.exists(selection_cache_path):
+        print(f"Loading cached Validation model-selection results from {selection_cache_path}")
+        selection_res = pd.read_parquet(selection_cache_path)
+    else:
+        selection_res = run_backtest(
+            X, y, VALIDATION_START, VALIDATION_END,
+            window_type=winner, window_days=WINDOW_DAYS,
+            fit_lgbm=True, label="ModelSelection[2024]",
+        )
+        selection_res.to_parquet(selection_cache_path)
+        print(f"Results cached → {selection_cache_path}")
     sel_mae_ridge = mae(selection_res["y_true"].values, selection_res["ridge"].values)
     sel_mae_lgbm  = mae(selection_res["y_true"].values, selection_res["lgbm"].values)
 
